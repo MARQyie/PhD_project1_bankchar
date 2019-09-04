@@ -1,7 +1,7 @@
 #------------------------------------------
 # Make figures for first working papers
 # Mark van der Plaat
-# June 2019 
+# September 2019 
 
 ''' 
     This script creates for working paper #1
