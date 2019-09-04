@@ -302,11 +302,11 @@ sns.boxplot(df.intexpsub) # No action
 ## Number of branches
 sns.boxplot(df.num_branch) # No action
 
-#------------------------------------------
-# Drop missings
-'''Do not use all the credit derivatives to drop the NaNs, these series start
-    later than 2001'''
-# TODO: Decide which nan based on which variables to drop when starting the analysis
+## Regulatory Capital Ratios
+sns.boxplot(df.RC7205) # many large outliers
+df = df[df.RC7205 < df.RC7205.quantile(q = 0.999)]
+
+sns.boxplot(df.RC7206) # No action
 
 #------------------------------------------
 # Check obs per years
