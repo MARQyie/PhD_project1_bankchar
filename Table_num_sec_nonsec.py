@@ -36,13 +36,19 @@ count_nonsec = count_nonsec.droplevel(level = 0)
 ## Make total column
 count_sum = count_sec + count_nonsec
 
+## Make a percentage securitizers column
+count_sec_perc = count_sec.divide(count_sum) * 100
+
 ## Make dataframe
-table_count = pd.DataFrame([count_sec,count_nonsec,count_sum],\
-                           index = ['Securitizers','Non-securitizers','Total']).T
+table_count = pd.DataFrame([count_sec,count_sec_perc,count_nonsec,count_sum],\
+                           index = ['Securitizers','Securitizers (in %)','Non-securitizers','Total']).T
 
 ## Make total row                                          
 table_count.loc[-1] = np.array(table_count.sum())
 table_count.rename({-1:'Total'}, axis = 'index', inplace = True)
+
+### Redo the total securitizers (in %)
+table_count.iloc[-1,1] = table_count.iloc[-1,0] / table_count.iloc[-1,2] * 100
 
 ## Save table
 table_count.to_excel('Table_count_sec_nonsec.xlsx')
