@@ -35,13 +35,13 @@ df.set_index(['IDRSSD','date'],inplace=True)
 
 #------------------------------------------
 # Split the dataframes on securitizer and non-securitizers
-df_sec = df[df.RCBtot > 0]
-df_nonsec = df[df.RCBtot == 0]
+df_sec = df[df.sec_tot > 0]
+df_nonsec = df[df.sec_tot == 0]
 
 #------------------------------------------
 # Figure 1: Total securitization (B705 + B711; 1-4 Family residential loans + all other)
 ## Sum per year, drop index level and divide by $1 million
-sec_year = df_sec.RCB705.mean(level = [1,1])
+sec_year = df_sec.sec_tot.mean(level = [1,1])
 sec_year = sec_year.droplevel(level = 0)
 sec_year = sec_year.divide(1e6)
 

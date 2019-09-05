@@ -296,8 +296,14 @@ var_num = ['B705','B711','B790','B796']
 for i,elem in enumerate(var_num):
     '''Combines the RCFD and RCON variables into one variable. If RCFD is a number it takes the RCFD, RCON otherwise '''
     df_rcs['RC{}'.format(elem)] = df_rcs.apply(lambda x: x['RCFD{}'.format(elem)] if not np.isnan(x['RCFD{}'.format(elem)]) and  round(x['RCFD{}'.format(elem)]) != 0 else (x['RCON{}'.format(elem)]), axis = 1) 
+
+### Make a total securitization and total loan sales variable
+'''First fill the NaNs with zeros. Since we know that a NaN is a true zero'''
+cols_nanfill = ['RCB705', 'RCB711', 'RCB790', 'RCB796']
+df_rcs[cols_nanfill] = df_rcs[cols_nanfill].fillna(value = 0)
     
-df_rcs['RCBtot'] = df_rcs.apply(lambda x: x.RCB705 + x.RCB711 + x.RCB790 + x.RCB796, axis = 1) 
+df_rcs['sec_tot'] = df_rcs.apply(lambda x: x.RCB705 + x.RCB711, axis = 1)
+df_rcs['ls_tot'] = df_rcs.apply(lambda x: x.RCB790 + x.RCB796, axis = 1)  
 #------------------------------------------
 ## Load ri data    
 for i in range(start,end):

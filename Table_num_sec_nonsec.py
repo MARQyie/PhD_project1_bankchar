@@ -26,8 +26,8 @@ df.set_index(['IDRSSD','date'],inplace=True)
 #------------------------------------------
 # Make table
 ## Count rows per year (securitizers vs. nonsecuritizers)
-count_sec = df[df.RCBtot > 1].groupby(level = [1,1]).size()
-count_nonsec = df[df.RCBtot == 0].groupby(level = [1,1]).size()
+count_sec = df[df.sec_tot > 1].groupby(level = [1,1]).size()
+count_nonsec = df[df.sec_tot == 0].groupby(level = [1,1]).size()
 
 ### Remove double index
 count_sec = count_sec.droplevel(level = 0)

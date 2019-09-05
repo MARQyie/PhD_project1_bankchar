@@ -33,8 +33,8 @@ df.set_index(['IDRSSD','date'],inplace=True)
 
 #------------------------------------------
 # Split the dataframes on securitizer and non-securitizers
-df_sec = df[df.RCBtot > 0]
-df_nonsec = df[df.RCBtot == 0]
+df_sec = df[df.sec_tot > 0]
+df_nonsec = df[df.sec_tot == 0]
 
 #------------------------------------------
 # Make function that creates the tables

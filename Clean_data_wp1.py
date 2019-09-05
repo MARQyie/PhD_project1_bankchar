@@ -36,6 +36,8 @@ df = pd.read_csv('df_assetcomp_raw.csv', index_col = 0 )
 #------------------------------------------
 # Drop useless colums 
 ## Make list of variables to drop
+''' The lists below make variable names that have been used to make new variables
+    and are otherwise not needed.'''
 var_codes = ['2170','3545','3548','0081','0071','2948','1771','1773','0213','1287','1754','1420',\
             '1460','1590','1797','2122','8725','8726','8727','8728','A126','A127','8723','8724',\
             'C968','C969','C970','C971','C972','C973','C974','C975','G641','B704','A222','3128',\
@@ -53,7 +55,7 @@ col_crop = col_crop_rest + col_crop_rc + ['RCFN2200','RCON2200','RCFAA223','RCOA
 df.drop(col_crop, axis = 1, inplace = True)
 
 #------------------------------------------
-# Check RIAD 4230
+# Check RIAD 4230 (are two variables with that name)
 sum(df.RIAD4230_y.eq(df.RIAD4230_x) * 1) # two entries are not identical..
 
 ## Check the different entries
@@ -84,11 +86,6 @@ drop_banks = np.array(df.IDRSSD.value_counts()[df.IDRSSD.value_counts() == 1].in
 df = df[~df.IDRSSD.isin(drop_banks)]
 
 #------------------------------------------
-# Fill Nans with zeros for securitization and loan sales
-cols_nanfill = ['RCB705', 'RCB711', 'RCB790', 'RCB796', 'RCBtot']
-df[cols_nanfill] = df[cols_nanfill].fillna(value = 0)
-
-#------------------------------------------
 # Drop missings in Total assets, liquidity, loans, deposits, capital and income, RWA
 ## Sum cash and securities, label as liquid assets
 df['liqass'] = df[['RC0071','RC0081','RC1773','RC1754']].sum(axis = 1, skipna = False)
@@ -97,9 +94,6 @@ df['liqass'] = df[['RC0071','RC0081','RC1773','RC1754']].sum(axis = 1, skipna = 
 nandrop_cols = ['RC2170','RC2122','RC2200','RC3210','RIAD4340','RCG641','liqass']
 df.dropna(subset = nandrop_cols , inplace = True)
 
-''' Note: When I drop the NaNs from the liquid assets I loose a lot of obs in 
-    the years 2011-2016
-    '''
 #------------------------------------------
 # Make new variables
 ## Bank size
@@ -112,25 +106,25 @@ df['tot_size'] = df.apply(lambda x: np.log(x.RC2170 * (1 + ((x.RIAD4079 - x.RIAD
   else 0.0 if ((x.RIAD4074 - x.RIAD4230) != 0) and ((x.RC2170 * (1 + ((x.RIAD4079 - x.RIAD4080)/(x.RIAD4074 - x.RIAD4230)))) == 0) else np.nan, axis = 1)
 
 ## Liquidity ratio
-df['liqratio'] = df.liqass / df.RC2170
+df['liqratio'] = (df.liqass / df.RC2170).replace(np.inf, 0)
 
 ## Trading assets ratio
-df['traderatio'] = df.RC3545 / df.RC2170
+df['traderatio'] = (df.RC3545 / df.RC2170).replace(np.inf, 0)
 
 ## Loan ratio
-df['loanratio'] = df.RC2122 / df.RC2170
+df['loanratio'] = (df.RC2122 / df.RC2170).replace(np.inf, 0)
 
 ## Loans-to-deposits
-df['ltdratio'] = df.RC2122 / df.RC2200
+df['ltdratio'] = (df.RC2122 / df.RC2200).replace(np.inf, 0)
 
 ## Deposit ratio
-df['depratio'] = df.RC2200 / df.RC2170
+df['depratio'] = (df.RC2200 / df.RC2170).replace(np.inf, 0)
 
 ## Share retail deposits
-df['retaildep'] = (df.RCONB549 + df.RCONB550) / df.RC2200
+df['retaildep'] = ((df.RCONB549 + df.RCONB550) / df.RC2200).replace(np.inf, 0)
 
 ## Simple equity ratio
-df['eqratio'] = df.RC3210 / df.RC2170
+df['eqratio'] = (df.RC3210 / df.RC2170).replace(np.inf, 0)
 
 ## Loan growth
 df['dloan'] = df.groupby('IDRSSD').RC2122.pct_change()
@@ -139,31 +133,31 @@ df['dloan'] = df.groupby('IDRSSD').RC2122.pct_change()
 df['dass'] = df.groupby('IDRSSD').RC2170.pct_change()
 
 ## Commercial loan ratio
-df['comloanratio'] = df.RCON1766 / df.RC2170
+df['comloanratio'] = (df.RCON1766 / df.RC2170).replace(np.inf, 0)
 
 ## Agricultural loan ratio
-df['agriloanratio'] = df.RC1590 / df.RC2170
+df['agriloanratio'] = (df.RC1590 / df.RC2170).replace(np.inf, 0)
 
 ## RWA over TA
-df['rwata'] = df.RCG641 / df.RC2170
+df['rwata'] = (df.RCG641 / df.RC2170).replace(np.inf, 0)
 
 ## Loan charge-off ratio 
-df['coffratio'] = df.RIAD4635 / df.RC2122
+df['coffratio'] = (df.RIAD4635 / df.RC2122).replace(np.inf, 0)
 
 ## Loan allowance ratio
-df['allowratio'] = df.RIAD3123 / df.RC2122
+df['allowratio'] = (df.RIAD3123 / df.RC2122).replace(np.inf, 0)
 
 ## Loan provision ratio
-df['provratio'] = df.RIAD4230 / df.RC2122
+df['provratio'] = (df.RIAD4230 / df.RC2122).replace(np.inf, 0)
 
 ## Interest expense relative to total liablities
-df['intliabratio'] = df.RIAD4079 / df.RC2948
+df['intliabratio'] = (df.RIAD4079 / df.RC2948).replace(np.inf, 0)
 
 ## ROE
-df['roe'] = df.RIAD4340 / df.RC3210
+df['roe'] = (df.RIAD4340 / df.RC3210).replace(np.inf, 0)
 
 ## ROA 
-df['roa'] = df.RIAD4340 / df.RC2170
+df['roa'] = (df.RIAD4340 / df.RC2170).replace(np.inf, 0)
 
 ## z-score
 '''See Demirguc-Kunt & Huizinga (2010)'''
@@ -171,40 +165,40 @@ zscore = pd.DataFrame(df.groupby('IDRSSD').apply(lambda x: (np.mean(x.roa) + np.
 df = df.merge(zscore, left_on = ['IDRSSD'], right_on = zscore.index, how = 'left')
 
 ## Net interest margin
-df['nim'] = df.RIAD4074 / df.RC2170
+df['nim'] = (df.RIAD4074 / df.RC2170).replace(np.inf, 0)
 
 ## Cost-to-income margin
-df['costinc'] = df.RIAD4093 / (df.RIAD4074 + df.RIAD4079)
+df['costinc'] = (df.RIAD4093 / (df.RIAD4074 + df.RIAD4079)).replace(np.inf, 0)
 
 ## Non-interest income to operating income
-df['nonincoperinc'] = df.RIAD4079 / (df.RIAD4074 + df.RIAD4079)
+df['nonincoperinc'] = (df.RIAD4079 / (df.RIAD4074 + df.RIAD4079)).replace(np.inf, 0)
 
 ## Loan interest income
-df['intincloan'] = (df.RIAD4010 + df.RIAD4065) / df.RIAD4107
+df['intincloan'] = ((df.RIAD4010 + df.RIAD4065) / df.RIAD4107).replace(np.inf, 0)
 
 ## Interest income of other deposit institutions
-df['intincdepins'] = df.RIAD4115 / df.RIAD4107
+df['intincdepins'] = (df.RIAD4115 / df.RIAD4107).replace(np.inf, 0)
 
 ## Interest income of securities
-df['intincsec'] = (df.RIADB488 + df.RIADB489 + df.RIAD4060) / df.RIAD4107
+df['intincsec'] = ((df.RIADB488 + df.RIADB489 + df.RIAD4060) / df.RIAD41070).replace(np.inf, 0)
 
 ## Interest income of trading assets
-df['intinctrade'] = df.RIAD4069 / df.RIAD4107
+df['intinctrade'] = (df.RIAD4069 / df.RIAD4107).replace(np.inf, 0)
 
 ## Interest income of REPO
-df['intincrepo'] = df.RIAD4020 / df.RIAD4107
+df['intincrepo'] = (df.RIAD4020 / df.RIAD4107).replace(np.inf, 0)
 
 ## Other interest income
-df['intincoth'] = df.RIAD4518 / df.RIAD4107
+df['intincoth'] = (df.RIAD4518 / df.RIAD4107).replace(np.inf, 0)
 
 ## Interest expenses on REPOs
-df['intexprepo'] = df.RIAD4180 / df.RIAD4073
+df['intexprepo'] = (df.RIAD4180 / df.RIAD4073).replace(np.inf, 0)
 
 ## Interest expenses on trading liabilities
-df['intexptrade'] = df.RIAD4185 / df.RIAD4073
+df['intexptrade'] = (df.RIAD4185 / df.RIAD407).replace(np.inf, 0)
 
 ## Interest expenses on subordinated notes
-df['intexpsub'] = df.RIAD4200 / df.RIAD4073
+df['intexpsub'] = (df.RIAD4200 / df.RIAD4073).replace(np.inf, 0)
 
 ## Number of branches
 df_branches = numberOfBranches(2001,2019)
