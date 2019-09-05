@@ -61,3 +61,49 @@ plt.tight_layout()
 plt.show()
 
 fig.savefig('Fig1_total_sec.png')
+
+#-----------------------------------------
+# Figure 2: Capital ratios and securitization over TA
+'''Plot the securitizers only.'''
+## Make variable for Securitization over TA
+df_sec['sec_ta'] = df_sec.sec_tot.divide(df.RC2170)
+
+## Prelims
+labels = ['Capital/TA','Securitization/TA']
+line_styles = ['-','-.']
+
+## Plot
+fig, ax = plt.subplots(figsize=(12, 8))
+plt.title('Capital Ratios and Securitization of Securitizing US Banks')
+ax.set(xlabel='Year', ylabel = 'Capital/TA (in %)')
+ax.plot(df_sec.eqratio.mean(level = [1,1]).droplevel(level = 0) * 100, linestyle = line_styles[0], label = labels[0], color = 'black')
+ax2 = ax.twinx()
+ax2.set_ylabel('Securitization/TA (in %)')
+ax2.plot(df_sec.sec_ta.mean(level = [1,1]).droplevel(level = 0) * 100, linestyle = line_styles[1], label = labels[1], color = 'black')
+h1, l1 = ax.get_legend_handles_labels()
+h2, l2 = ax2.get_legend_handles_labels()
+ax.legend(h1+h2, l1+l2, loc=3)
+plt.tight_layout()
+plt.show()
+
+fig.savefig('Fig2_capta_secta.png')
+
+#-----------------------------------------
+# Figure 2: Capital ratios securitizers and non-securitizers
+## Prelims
+labels = ['Securitizers','Non-Securitizers']
+line_styles = ['-','-.']
+
+## Plot
+fig, ax = plt.subplots(figsize=(12, 8))
+plt.title('Capital Ratios of Securitizing and Non-securitizing US Banks')
+ax.set(xlabel='Year', ylabel = 'Capital/TA (in %)')
+ax.plot(df_sec.eqratio.mean(level = [1,1]).droplevel(level = 0) * 100, linestyle = line_styles[0], label = labels[0], color = 'black')
+ax.plot(df_nonsec.eqratio.mean(level = [1,1]).droplevel(level = 0) * 100, linestyle = line_styles[0], label = labels[0], color = 'black')
+ax.legend()
+plt.tight_layout()
+plt.show()
+
+fig.savefig('Fig3_capta_sec_nonsec.png')
+
+
