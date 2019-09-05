@@ -46,7 +46,7 @@ table_count = pd.DataFrame([count_sec,count_sec_perc,count_nonsec,count_sum],\
 ## Make total row
 table_count.loc[-1] = np.array([df[df.sec_tot > 0].index.get_level_values(0).nunique(), df[df.sec_tot > 0].index.get_level_values(0).nunique() / df[df.sec_tot == 0].index.get_level_values(0).nunique() * 100, df[df.sec_tot == 0].index.get_level_values(0).nunique(), df.index.get_level_values(0).nunique()])
 
-table_count.rename({-1:'Total'}, axis = 'index', inplace = True)
+table_count.rename({-1:'Total Sample'}, axis = 'index', inplace = True)
 
 ## Save table
 table_count.to_excel('Table_count_sec_nonsec.xlsx')

@@ -41,7 +41,7 @@ df = pd.read_csv('df_assetcomp_raw.csv', index_col = 0 )
 var_codes = ['2170','3545','3548','0081','0071','2948','1771','1773','0213','1287','1754','1420',\
             '1460','1590','1797','2122','8725','8726','8727','8728','A126','A127','8723','8724',\
             'C968','C969','C970','C971','C972','C973','C974','C975','G641','B704','A222','3128',\
-            'A223','B705','B711','B790','B796','3210'] 
+            'A223','B705','B706','B707','B708','B709','B710','B711','B790','B796','3210'] 
 scheme_codes = ['RCFD','RCON']
 var_codes_rcr = ['7204','7205','7206']
 scheme_codes_rcr = ['RCFA','RCFD','RCOA','RCON','RCO','RCF']
@@ -88,7 +88,7 @@ df = df[~df.IDRSSD.isin(drop_banks)]
 #------------------------------------------
 # Drop missings in Total assets, liquidity, loans, deposits, capital and income, RWA
 ## Sum cash and securities, label as liquid assets
-df['liqass'] = df[['RC0071','RC0081','RC1773','RC1754']].sum(axis = 1, skipna = False)
+df['liqass'] = df[['RC0071','RC0081','RC1773','RC1754']].sum(axis = 1, skipna = True)
 
 ## Drop the NaNs
 nandrop_cols = ['RC2170','RC2122','RC2200','RC3210','RIAD4340','RCG641','liqass']
@@ -206,7 +206,7 @@ df_branches.reset_index(inplace = True)
 
 df = df.merge(df_branches, on = ['IDRSSD', 'date'], how = 'left')
 
-### Drop banks that have no know number of branches
+### Drop banks that have no known number of branches
 df.dropna(subset = ['num_branch'], inplace = True)
 
 #------------------------------------------
@@ -245,7 +245,7 @@ df = df[~df.provratio.isin(df.provratio.nsmallest(n = 4))]
 '''This variable looks very disperse with many highly negative values.
     Might not be suitable for an analysis.'''
 sns.boxplot(df.roe) # Three huge negative values, take out
-df = df[~df.roe.isin(df.roe.nsmallest(n = 3))]
+#df = df[~df.roe.isin(df.roe.nsmallest(n = 3))]
 
 ## ROA 
 sns.boxplot(df.roa) # No weird obs
@@ -297,6 +297,7 @@ sns.boxplot(df.intexpsub) # No action
 sns.boxplot(df.num_branch) # No action
 
 ## Regulatory Capital Ratios
+'''Kicks out many obervations with values at sec_tot'''
 sns.boxplot(df.RC7205) # many large outliers
 df = df[df.RC7205 < df.RC7205.quantile(q = 0.999)]
 
