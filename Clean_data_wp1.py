@@ -180,7 +180,7 @@ df['intincloan'] = ((df.RIAD4010 + df.RIAD4065) / df.RIAD4107).replace(np.inf, 0
 df['intincdepins'] = (df.RIAD4115 / df.RIAD4107).replace(np.inf, 0)
 
 ## Interest income of securities
-df['intincsec'] = ((df.RIADB488 + df.RIADB489 + df.RIAD4060) / df.RIAD41070).replace(np.inf, 0)
+df['intincsec'] = ((df.RIADB488 + df.RIADB489 + df.RIAD4060) / df.RIAD4107).replace(np.inf, 0)
 
 ## Interest income of trading assets
 df['intinctrade'] = (df.RIAD4069 / df.RIAD4107).replace(np.inf, 0)
@@ -195,7 +195,7 @@ df['intincoth'] = (df.RIAD4518 / df.RIAD4107).replace(np.inf, 0)
 df['intexprepo'] = (df.RIAD4180 / df.RIAD4073).replace(np.inf, 0)
 
 ## Interest expenses on trading liabilities
-df['intexptrade'] = (df.RIAD4185 / df.RIAD407).replace(np.inf, 0)
+df['intexptrade'] = (df.RIAD4185 / df.RIAD4073).replace(np.inf, 0)
 
 ## Interest expenses on subordinated notes
 df['intexpsub'] = (df.RIAD4200 / df.RIAD4073).replace(np.inf, 0)
