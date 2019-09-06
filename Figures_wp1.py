@@ -20,7 +20,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 sns.set(style='white',font_scale=1.5)
-sns.set_palette('Greys_d')
+sns.set_palette('Greys', 7)
 sns.set_context('notebook')
 
 import os
@@ -89,7 +89,7 @@ plt.show()
 fig.savefig('Fig2_capta_secta.png')
 
 #-----------------------------------------
-# Figure 2: Capital ratios securitizers and non-securitizers
+# Figure 3: Capital ratios securitizers and non-securitizers
 ## Prelims
 labels = ['Securitizers','Non-Securitizers']
 line_styles = ['-','-.']
@@ -99,11 +99,43 @@ fig, ax = plt.subplots(figsize=(12, 8))
 plt.title('Capital Ratios of Securitizing and Non-securitizing US Banks')
 ax.set(xlabel='Year', ylabel = 'Capital/TA (in %)')
 ax.plot(df_sec.eqratio.mean(level = [1,1]).droplevel(level = 0) * 100, linestyle = line_styles[0], label = labels[0], color = 'black')
-ax.plot(df_nonsec.eqratio.mean(level = [1,1]).droplevel(level = 0) * 100, linestyle = line_styles[0], label = labels[0], color = 'black')
+ax.plot(df_nonsec.eqratio.mean(level = [1,1]).droplevel(level = 0) * 100, linestyle = line_styles[1], label = labels[1], color = 'black')
 ax.legend()
 plt.tight_layout()
 plt.show()
 
 fig.savefig('Fig3_capta_sec_nonsec.png')
 
+#-----------------------------------------
+# Figure 4: Stacked plot Securitization
+## Setup the cumsum array
+sec_cumsum = df_sec[['RCB705','RCB706','RCB707','RCB708','RCB709','RCB710','RCB711']].sum(level = [1,1]).cumsum(axis = 1).droplevel(level = 0).divide(1e6)
 
+## Plot
+labels = ['Residential','Home Equity','Credit Card','Auto','Other Consumer','Commercial','All other']
+
+fig, ax = plt.subplots(figsize=(12, 8))
+plt.title('Total Securitization')
+ax.set(xlabel='Year', ylabel = 'Amount of securitization (in $ Billion)')
+ax.fill_between(sec_cumsum.index, 0, sec_cumsum.iloc[:,0], label = labels[0])
+for i in range(sec_cumsum.shape[1]-1):
+    ax.fill_between(sec_cumsum.index, sec_cumsum.iloc[:,i], sec_cumsum.iloc[:,i+1], label = labels[i+1])
+ax.legend()
+fig.tight_layout()
+plt.show()
+
+fig.savefig('Fig4_stacked_cat_sec.png')
+
+#-----------------------------------------
+# Figure 5: Concentration of securitizing banks
+'''This figure displays the concentration among securitizing banks'''
+
+## Make the array to plot
+sec_sum_sort = df_sec.groupby(df_sec.index.get_level_values(0)).sec_tot.sum().sort_values(ascending = False)
+
+groups = [100,75,50,25,10,5]
+total_sec = sec_sum_sort.sum()
+sec_cons = []
+
+for i in groups:
+    sec_cons.append(sec_sum_sort[:i].sum() / total_sec * 100)
