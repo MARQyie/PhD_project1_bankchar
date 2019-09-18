@@ -33,6 +33,8 @@ df.set_index(['IDRSSD','date'],inplace=True)
 
 #------------------------------------------
 # Split the dataframes on securitizer and non-securitizers
+
+# TODO: Change the variable of sec_tot, add non-securitized loan sales and the total group of loan sales
 df_sec = df[df.sec_tot > 0]
 df_nonsec = df[df.sec_tot == 0]
 

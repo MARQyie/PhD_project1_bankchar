@@ -34,6 +34,8 @@ df = pd.read_csv('df_wp1_clean.csv', index_col = 0)
 df.date = pd.to_datetime(df.date.astype(str).str.strip() + '1230')
 df.set_index(['IDRSSD','date'],inplace=True)
 
+# TODO: Change the variable of sec_tot, add non-securitized loan sales and the total group of loan sales
+
 #------------------------------------------
 # Split the dataframes on securitizer and non-securitizers
 df_sec = df[df.sec_tot > 0]
