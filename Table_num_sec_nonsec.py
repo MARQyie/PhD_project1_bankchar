@@ -57,10 +57,11 @@ table_count.loc[-1] = np.array([df[df.ls_sec_tot > 0].index.get_level_values(0).
     df[df.ls_nonsec_tot > 0].index.get_level_values(0).nunique(),\
     df[df.ls_tot > 0].index.get_level_values(0).nunique(),\
     df[df.ls_tot > 0].index.get_level_values(0).nunique() / df.index.get_level_values(0).nunique() * 100,\
-    df[df.count_non == 0].index.get_level_values(0).nunique(),\
+    df[df.ls_tot == 0].index.get_level_values(0).nunique(),\
     df.index.get_level_values(0).nunique()])
 
 table_count.rename({-1:'Total Sample'}, axis = 'index', inplace = True)
 
 ## Save table
 table_count.to_excel('Table_ls.xlsx')
+table_count.to_latex('Table_ls_latex.tex')
