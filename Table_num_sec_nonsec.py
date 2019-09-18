@@ -25,28 +25,42 @@ df.set_index(['IDRSSD','date'],inplace=True)
 
 #------------------------------------------
 # Make table
-## Count rows per year (securitizers vs. nonsecuritizers)
-count_sec = df[df.sec_tot > 0].groupby(level = [1,1]).size()
-count_nonsec = df[df.sec_tot == 0].groupby(level = [1,1]).size()
-
-### Remove double index
-count_sec = count_sec.droplevel(level = 0)
-count_nonsec = count_nonsec.droplevel(level = 0)
+## Count rows per year (banks with securitized loans sales, non-securitized loan sales, both and nothing)
+count_lssec = df[df.ls_sec_tot > 0].groupby(level = [1,1]).size()
+count_lsnonsec = df[df.ls_nonsec_tot > 0].groupby(level = [1,1]).size()
+count_ls = df[df.ls_tot > 0].groupby(level = [1,1]).size()
+count_non = df[df.ls_tot == 0].groupby(level = [1,1]).size()
 
 ## Make total column
-count_sum = count_sec + count_nonsec
+count_sum = df.groupby(level = [1,1]).size()
+
+### Remove double index
+count_sum = count_sum.droplevel(level = 0)
+count_ls = count_ls.droplevel(level = 0)
+count_lssec = count_lssec.droplevel(level = 0)
+count_non = count_non.droplevel(level = 0)
+count_lsnonsec = count_lsnonsec.droplevel(level = 0)
 
 ## Make a percentage securitizers column
-count_sec_perc = count_sec.divide(count_sum) * 100
+perc_lssec = count_lssec.divide(count_sum) * 100
+prec_ls = count_ls.divide(count_sum) * 100
 
 ## Make dataframe
-table_count = pd.DataFrame([count_sec,count_sec_perc,count_nonsec,count_sum],\
-                           index = ['Securitizers','Securitizers (in %)','Non-securitizers','Total']).T
+table_count = pd.DataFrame([count_lssec,perc_lssec,count_lsnonsec,count_ls,prec_ls,count_non,count_sum],\
+                           index = ['Securitized Loan Sales','Securitized Loan Sales (in %)',\
+                                    'Non-securitized Loan Sales','Total Loan Sales','Total Loan Sales (in %)',\
+                                    'No Loan Sales','Total']).T
 
 ## Make total row
-table_count.loc[-1] = np.array([df[df.sec_tot > 0].index.get_level_values(0).nunique(), df[df.sec_tot > 0].index.get_level_values(0).nunique() / df[df.sec_tot == 0].index.get_level_values(0).nunique() * 100, df[df.sec_tot == 0].index.get_level_values(0).nunique(), df.index.get_level_values(0).nunique()])
+table_count.loc[-1] = np.array([df[df.ls_sec_tot > 0].index.get_level_values(0).nunique(), \
+    df[df.ls_sec_tot > 0].index.get_level_values(0).nunique() / df.index.get_level_values(0).nunique() * 100,\
+    df[df.ls_nonsec_tot > 0].index.get_level_values(0).nunique(),\
+    df[df.ls_tot > 0].index.get_level_values(0).nunique(),\
+    df[df.ls_tot > 0].index.get_level_values(0).nunique() / df.index.get_level_values(0).nunique() * 100,\
+    df[df.count_non == 0].index.get_level_values(0).nunique(),\
+    df.index.get_level_values(0).nunique()])
 
 table_count.rename({-1:'Total Sample'}, axis = 'index', inplace = True)
 
 ## Save table
-table_count.to_excel('Table_count_sec_nonsec.xlsx')
+table_count.to_excel('Table_ls.xlsx')
