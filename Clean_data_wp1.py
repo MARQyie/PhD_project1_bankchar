@@ -222,7 +222,11 @@ for i in vars_limit:
 df = df.replace([np.inf, -np.inf], np.nan)
     
 #------------------------------------------
-# Check outliers 
+# Check outliers
+# Residential non-securitized loan sales
+sns.boxplot(df.RCB790) # one huge one, take out
+df = df[df.RCB790 != df.RCB790.max()]
+ 
 ## Loan-to-deposit ratio
 sns.boxplot(df.ltdratio) # quite some
 df = df[df.ltdratio < df.ltdratio.quantile(q = 0.999)]

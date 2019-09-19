@@ -32,7 +32,7 @@ count_ls = df[df.ls_tot > 0].groupby(level = [1,1]).size()
 count_non = df[df.ls_tot == 0].groupby(level = [1,1]).size()
 
 ## Make total column
-count_sum = df.groupby(level = [1,1]).size()
+count_sum = df.groupby(level = [1,1]).size().astype(int)
 
 ### Remove double index
 count_sum = count_sum.droplevel(level = 0)
@@ -46,7 +46,8 @@ perc_lssec = count_lssec.divide(count_sum) * 100
 prec_ls = count_ls.divide(count_sum) * 100
 
 ## Make dataframe
-table_count = pd.DataFrame([count_lssec,perc_lssec,count_lsnonsec,count_ls,prec_ls,count_non,count_sum],\
+table_count = pd.DataFrame([count_lssec,perc_lssec,count_lsnonsec,count_ls,\
+                            prec_ls,count_non,count_sum],\
                            index = ['Securitized Loan Sales','Securitized Loan Sales (in %)',\
                                     'Non-securitized Loan Sales','Total Loan Sales','Total Loan Sales (in %)',\
                                     'No Loan Sales','Total']).T
