@@ -143,6 +143,8 @@ df['rwata'] = (df.RCG641 / df.RC2170).replace(np.inf, 0)
 
 ## Loan charge-off ratio 
 df['coffratio'] = (df.RIAD4635 / df.RC2122).replace(np.inf, 0)
+df['coffratio_tot'] = (df[['RIADB747','RIADB748','RIADB749','RIADB750',\
+  'RIADB751','RIADB752','RIADB753', 'RIAD4635']].sum(axis = 1) / df.RC2122).replace(np.inf, 0)
 
 ## Loan allowance ratio
 df['allowratio'] = (df.RIAD3123 / df.RC2122).replace(np.inf, 0)

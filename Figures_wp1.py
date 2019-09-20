@@ -84,7 +84,7 @@ fig.savefig('Fig1b_total_ls_nonsec.png')
 # Figure 2: Capital ratios and securitization over TA
 '''Plot the securitizers only.'''
 ## Make variable for Securitization over TA
-df_sec['sec_ta'] = df_sec.sec_tot.divide(df.RC2170)
+df_sec['sec_ta'] = df_sec.ls_sec_tot.divide(df.RC2170)
 
 ## Prelims
 labels = ['Capital/TA','Securitization/TA']
