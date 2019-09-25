@@ -88,7 +88,8 @@ df = df[~df.IDRSSD.isin(drop_banks)]
 #------------------------------------------
 # Drop missings in Total assets, liquidity, loans, deposits, capital and income, RWA
 ## Sum cash and securities, label as liquid assets
-df['liqass'] = df[['RC0071','RC0081','RC1773','RC1754']].sum(axis = 1, skipna = True)
+df['liqass'] = df[['RC0071','RC0081','RC1773','RC1754']].sum(axis = 1, skipna = True) 
+#TODO add RCON1350 (splits in BB987 + B989)
 
 ## Drop the NaNs
 nandrop_cols = ['RC2170','RC2122','RC2200','RC3210','RIAD4340','RCG641','liqass']
@@ -123,6 +124,15 @@ df['depratio'] = (df.RC2200 / df.RC2170).replace(np.inf, 0)
 ## Share retail deposits
 df['retaildep'] = ((df.RCONB549 + df.RCONB550) / df.RC2200).replace(np.inf, 0)
 
+## Wholesale funding
+'''First combine some variables'''
+df['tot_time_dep'] = df.apply(lambda x: np.sum(x[['RCON6648','RCON2604']]) if x.date < 2010  \
+                     else np.sum(x[['RCON6648','RCONJ473','RCONJ474']]), axis = 1)
+df['fed_repo'] = df.apply(lambda x: x.RC2800 if x.date == 2001 else np.sum(x[['RCONB993','RCONB995']]), axis = 1)
+
+df['wholesale'] = df[['tot_time_dep','fed_repo', 'RCON3200']].aggregate(np.sum).\
+                  divide(df.RC2170).replace(np.inf, 0)
+
 ## Simple equity ratio
 df['eqratio'] = (df.RC3210 / df.RC2170).replace(np.inf, 0)
 
@@ -131,6 +141,14 @@ df['dloan'] = df.groupby('IDRSSD').RC2122.pct_change()
 
 ## Asset growth
 df['dass'] = df.groupby('IDRSSD').RC2170.pct_change()
+
+## Mortgages to loans
+df['mortratio'] = df.apply(lambda x: np.sum(x[['RC1415','RC1420','RC1460','RC1797']]) / x.RC2122 \
+                  if x.date < 2008 else np.sum(x[['RCONF158','RCONF149','RC1420','RC1460','RC1797']])\
+                  / x.RC2122, axis = 1).replace(np.inf, 0)
+
+## Home Equity Lines to loans
+df['HEL'] = ((df.RCON3814) / df.RC2122).replace(np.inf, 0)
 
 ## Commercial loan ratio
 df['comloanratio'] = (df.RCON1766 / df.RC2170).replace(np.inf, 0)
@@ -147,7 +165,13 @@ df['coffratio_tot'] = (df[['RIADB747','RIADB748','RIADB749','RIADB750',\
   'RIADB751','RIADB752','RIADB753', 'RIAD4635']].sum(axis = 1) / df.RC2122).replace(np.inf, 0)
 
 ## Loan allowance ratio
-df['allowratio'] = (df.RIAD3123 / df.RC2122).replace(np.inf, 0)
+df['allowratio_on'] = (df.RIAD3123 / df.RC2122).replace(np.inf, 0)
+df['allowratio_off'] = (df.RCONB557/ df.RC2122).replace(np.inf, 0)
+df['allowratio_tot'] = ((df.RIAD3123 + df.RCONB557) / df.RC2122).replace(np.inf, 0)
+
+df['allowratio_on_alt'] = (df.RIAD3123 / (df.RC2122 + df.ls_tot)).replace(np.inf, 0)
+df['allowratio_off_alt'] = (df.RCONB557/ (df.RC2122 + df.ls_tot)).replace(np.inf, 0)
+df['allowratio_tot_alt'] = ((df.RIAD3123 + df.RCONB557) / (df.RC2122 + df.ls_tot)).replace(np.inf, 0)
 
 ## Loan provision ratio
 df['provratio'] = (df.RIAD4230 / df.RC2122).replace(np.inf, 0)
@@ -160,11 +184,6 @@ df['roe'] = (df.RIAD4340 / df.RC3210).replace(np.inf, 0)
 
 ## ROA 
 df['roa'] = (df.RIAD4340 / df.RC2170).replace(np.inf, 0)
-
-## z-score
-'''See Demirguc-Kunt & Huizinga (2010)'''
-zscore = pd.DataFrame(df.groupby('IDRSSD').apply(lambda x: (np.mean(x.roa) + np.mean(x.eqratio)) / np.std(x.roa) if np.std(x.roa) != 0.0 else 0.0), columns = ['zscore']) 
-df = df.merge(zscore, left_on = ['IDRSSD'], right_on = zscore.index, how = 'left')
 
 ## Net interest margin
 df['nim'] = (df.RIAD4074 / df.RC2170).replace(np.inf, 0)
@@ -241,6 +260,7 @@ sns.boxplot(df.coffratio) # One mega outlier, take out
 df = df[df.coffratio != df.coffratio.max()]
 
 ## Loan allowance ratio 
+# TODO
 sns.boxplot(df.allowratio) # No weird obs, no action
 
 ## Loan provision ratio
@@ -255,11 +275,6 @@ sns.boxplot(df.roe) # Three huge negative values, take out
 
 ## ROA 
 sns.boxplot(df.roa) # No weird obs
-
-## z-score
-'''Consider using other variables than the zscore for measuring individual
-    bank risk'''
-sns.boxplot(df.zscore) # Many extreem obs
 
 ## Net interest margin
 sns.boxplot(df.nim) # No weird obs

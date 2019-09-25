@@ -21,13 +21,14 @@ sns.set(style='white',font_scale=1.5)
 import os
 os.chdir(r'X:\My Documents\PhD\Materials_dissertation\2-Chapter_2-bank_char')
 
+import csv
+
 #------------------------------------------
 # Set Prelims 
 start = 2001
 end = 2019
 path_info = r'X:/My Documents/Data/Data_call_reports_fed'
 path_call = r'X:/My Documents/Data/Data_call_reports_FFIEC2'
-first_run = False
 
 #------------------------------------------
 # Set filenames
@@ -38,6 +39,7 @@ file_rcb1 = r'/{}/FFIEC CDR Call Schedule RCB 1231{}.txt'
 file_rcb2 = r'/{}/FFIEC CDR Call Schedule RCB 1231{}(1 of 2).txt'
 file_rcc = r'/{}/FFIEC CDR Call Schedule RCCI 1231{}.txt'
 file_rce = r'/{}/FFIEC CDR Call Schedule RCE 1231{}.txt'
+file_rcg = r'/{}/FFIEC CDR Call Schedule RCG 1231{}.txt'
 file_rcl1 = r'/{}/FFIEC CDR Call Schedule RCL 1231{}.txt'
 file_rcl2 = r'/{}/FFIEC CDR Call Schedule RCL 1231{}(1 of 2).txt'
 file_rcl3 = r'/{}/FFIEC CDR Call Schedule RCL 1231{}(2 of 2).txt'
@@ -60,12 +62,15 @@ file_ribii = r'/{}/FFIEC CDR Call Schedule RIBII 1231{}.txt'
 # Set variables needed per csv
 ## From balance sheet
 vars_info = ['RSSD9001','RSSD9999','RSSD9048','RSSD9424','RSSD9170','RSSD9210']
-vars_rc = '|'.join(['IDRSSD','2170','3545','3548','2200','0081','0071','3210','2948']) 
+vars_rc = '|'.join(['IDRSSD','2170','3545','3548','2200','0081','0071','3210','2948',\
+                    '2800','B993','B995','3200']) 
 vars_rcb = '|'.join(['IDRSSD','1771','1773','0213','1287','1754'])
-vars_rcc = '|'.join(['IDRSSD','1410','1420','1797','1460','1288','1590','1766','2122','1590']) 
-vars_rce = '|'.join(['IDRSSD','B549','B550'])
-vars_rcl = '|'.join(['IDRSSD','8725','8726','8727','8728','A126','A127','8723','8724'])
-vars_rcl_cd = '|'.join(['IDRSSD', 'C968','C969','C970','C971','C972','C973','C974','C975']) 
+vars_rcc = '|'.join(['IDRSSD','1410','1415','1420','1797','1460','1288','1590','1766',\
+                     '2122','1590','F158','F159']) 
+vars_rce = '|'.join(['IDRSSD','B549','B550','6648','2604','J473','J474','B535','2081'])
+vars_rcg = '|'.join(['IDRSSD', 'B557'])
+vars_rcl = '|'.join(['IDRSSD','8725','8726','8727','8728','A126','A127','8723','8724','3814'])
+vars_rcl_cd = '|'.join(['IDRSSD', 'C968','C969','C970','C971','C972','C973','C974','C975'])
 vars_rcr = '|'.join(['IDRSSD','B704','A222','3128','7204','7205','7206','A223'])
 vars_rcs = '|'.join(['IDRSSD','B705','B706','B707','B708','B709','B710','B711',\
                      'B790','B791','B792','B793','B794','B795','B796',\
@@ -81,6 +86,7 @@ df_rc = pd.DataFrame()
 df_rcb = pd.DataFrame()
 df_rcc = pd.DataFrame()
 df_rce = pd.DataFrame()
+df_rcg = pd.DataFrame()
 df_rcl = pd.DataFrame()
 df_rcl_cd = pd.DataFrame()
 df_rcr = pd.DataFrame()
@@ -111,7 +117,7 @@ for i in range(start,end):
     df_rc = df_rc.append(df_load)
 
 ### Merge RCFD and RCON cols
-var_num = ['2170','3545','3548','0081','0071','2948','3210']
+var_num = ['2170','3545','3548','0081','0071','2948','3210','2800']
 
 for i,elem in enumerate(var_num):
     '''Combines the RCFD and RCON variables into one variable. If RCFD is a number it takes the RCFD, RCON otherwise '''
@@ -158,6 +164,15 @@ for i in range(start,end):
     df_load = df_load.loc[:,df_load.columns.str.contains(vars_rce)]
     df_load['date'] = int('{}'.format(i))
     df_rce = df_rce.append(df_load)
+#------------------------------------------
+## Load rcg data
+for i in range(start,end):
+    df_load = pd.read_csv((path_call + file_rcg).format(i,i), sep='\t',  skiprows = [1,2], engine = 'python', quoting=csv.QUOTE_NONE)
+    df_load = df_load.loc[:,df_load.columns.str.contains(vars_rcg)]
+    df_load['date'] = int('{}'.format(i))
+    df_rcg = df_rcg.append(df_load)
+    
+df_rcg.columns = ['IDRSSD', 'RCFDB557', 'RCONB557', 'date']
 #------------------------------------------   
 ## Load rcl data  
 for i in range(start,end):
@@ -330,6 +345,7 @@ for i in range(start,end):
 df_raw = df_rc.merge(df_rcc, on = ['IDRSSD', 'date'], how = 'left')
 df_raw = df_raw.merge(df_rcb, on = ['IDRSSD', 'date'], how = 'left')
 df_raw = df_raw.merge(df_rce, on = ['IDRSSD', 'date'], how = 'left')
+df_raw = df_raw.merge(df_rcg, on = ['IDRSSD', 'date'], how = 'left')
 df_raw = df_raw.merge(df_rcl, on = ['IDRSSD', 'date'], how = 'left')
 df_raw = df_raw.merge(df_rcl_cd, on = ['IDRSSD', 'date'], how = 'left')
 df_raw = df_raw.merge(df_rcr, on = ['IDRSSD', 'date'], how = 'left')
