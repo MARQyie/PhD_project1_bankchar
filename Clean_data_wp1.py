@@ -41,7 +41,13 @@ df = pd.read_csv('df_assetcomp_raw.csv', index_col = 0 )
 var_codes = ['2170','3545','3548','0081','0071','2948','1771','1773','0213','1287','1754','1420',\
             '1460','1590','1797','2122','8725','8726','8727','8728','A126','A127','8723','8724',\
             'C968','C969','C970','C971','C972','C973','C974','C975','G641','B704','A222','3128',\
-            'A223','B705','B706','B707','B708','B709','B710','B711','B790','B796','3210'] 
+            'A223','B705','B706','B707','B708','B709','B710','B711','B790','B796','3210',\
+            'B712','B713','B714','B715','B716','B717','B718',\
+           'B719','B720','B721','B722','B723','B724','B725',\
+           'B797','B798','B799','B800','B801','B802','B803',\
+           'C393','C394','C395','C396','C397','C398','C399',\
+           'C400','C401','C402','C403','C404','C405','C406',\
+           'HU09','HU15'] 
 scheme_codes = ['RCFD','RCON']
 var_codes_rcr = ['7204','7205','7206']
 scheme_codes_rcr = ['RCFA','RCFD','RCOA','RCON','RCO','RCF']
@@ -165,13 +171,22 @@ df['coffratio_tot'] = (df[['RIADB747','RIADB748','RIADB749','RIADB750',\
   'RIADB751','RIADB752','RIADB753', 'RIAD4635']].sum(axis = 1) / df.RC2122).replace(np.inf, 0)
 
 ## Loan allowance ratio
-df['allowratio_on'] = (df.RIAD3123 / df.RC2122).replace(np.inf, 0)
-df['allowratio_off'] = (df.RCONB557/ df.RC2122).replace(np.inf, 0)
-df['allowratio_tot'] = ((df.RIAD3123 + df.RCONB557) / df.RC2122).replace(np.inf, 0)
+df['allowratio_on_on'] = (df.RIAD3123 / df.RC2122).replace(np.inf, 0)
+df['allowratio_off_on'] = (df.RCONB557/ df.RC2122).replace(np.inf, 0)
+df['allowratio_tot_on'] = ((df.RIAD3123 + df.RCONB557) / df.RC2122).replace(np.inf, 0)
 
-df['allowratio_on_alt'] = (df.RIAD3123 / (df.RC2122 + df.ls_tot)).replace(np.inf, 0)
-df['allowratio_off_alt'] = (df.RCONB557/ (df.RC2122 + df.ls_tot)).replace(np.inf, 0)
-df['allowratio_tot_alt'] = ((df.RIAD3123 + df.RCONB557) / (df.RC2122 + df.ls_tot)).replace(np.inf, 0)
+df['allowratio_on_off'] = (df.RIAD3123 / (df.ls_tot)).replace(np.inf, 0)
+df['allowratio_off_off'] = (df.RCONB557/ (df.ls_tot)).replace(np.inf, 0)
+df['allowratio_tot_off'] = ((df.RIAD3123 + df.RCONB557) / (df.ls_tot)).replace(np.inf, 0)
+
+df['allowratio_on_tot'] = (df.RIAD3123 / (df.RC2122 + df.ls_tot)).replace(np.inf, 0)
+df['allowratio_off_tot'] = (df.RCONB557/ (df.RC2122 + df.ls_tot)).replace(np.inf, 0)
+df['allowratio_tot_tot'] = ((df.RIAD3123 + df.RCONB557) / (df.RC2122 + df.ls_tot)).replace(np.inf, 0)
+
+## Credit exposure loan sales ratio
+df['lsseccredex_ratio'] = (df.ls_sec_credex / df.ls_tot).replace(np.inf, 0)
+df['lsnonseccredex_ratio'] = (df.ls_nonsec_credex / df.ls_tot).replace(np.inf, 0)
+df['lscredex_ratio'] = (df.ls_credex / df.ls_tot).replace(np.inf, 0)
 
 ## Loan provision ratio
 df['provratio'] = (df.RIAD4230 / df.RC2122).replace(np.inf, 0)
@@ -261,7 +276,7 @@ df = df[df.coffratio != df.coffratio.max()]
 
 ## Loan allowance ratio 
 # TODO
-sns.boxplot(df.allowratio) # No weird obs, no action
+#sns.boxplot(df.allowratio) # No weird obs, no action
 
 ## Loan provision ratio
 sns.boxplot(df.provratio) # Some outliers, 4 impossibly negative, take out

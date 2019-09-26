@@ -74,7 +74,13 @@ vars_rcl_cd = '|'.join(['IDRSSD', 'C968','C969','C970','C971','C972','C973','C97
 vars_rcr = '|'.join(['IDRSSD','B704','A222','3128','7204','7205','7206','A223'])
 vars_rcs = '|'.join(['IDRSSD','B705','B706','B707','B708','B709','B710','B711',\
                      'B790','B791','B792','B793','B794','B795','B796',\
-                     'B747','B748','B749','B750','B751','B752','B753'])  
+                     'B747','B748','B749','B750','B751','B752','B753',\
+                     'B712','B713','B714','B715','B716','B717','B718',\
+                     'B719','B720','B721','B722','B723','B724','B725',\
+                     'B797','B798','B799','B800','B801','B802','B803',\
+                     'C393','C394','C395','C396','C397','C398','C399',\
+                     'C400','C401','C402','C403','C404','C405','C406',\
+                     'HU09','HU10','HU11','HU12','HU13','HU14','HU15'])  
 vars_ri = '|'.join(['IDRSSD','4074','4230','4079','4080','4107','4073','4093','4010','4065','4115','4060','B488','B489','4069',\
                     '4020','4518','4508','4180','4185','4200','4340'])
 vars_rib = '|'.join(['IDRSSD', '4230','4635','3123'])
@@ -308,21 +314,37 @@ for i in range(start,end):
     df_rcs = df_rcs.append(df_load) 
 
 ### Merge RCFD and RCON cols
-var_num = ['B705','B706','B707','B708','B709','B710','B711','B790','B791','B792','B793','B794','B795','B796']
+var_num = ['B705','B706','B707','B708','B709','B710','B711',\
+           'B790','B791','B792','B793','B794','B795','B796',\
+           'B712','B713','B714','B715','B716','B717','B718',\
+           'B719','B720','B721','B722','B723','B724','B725',\
+           'B797','B798','B799','B800','B801','B802','B803',\
+           'C393','C394','C395','C396','C397','C398','C399',\
+           'C400','C401','C402','C403','C404','C405','C406',\
+           'HU09','HU15']
 
 for i,elem in enumerate(var_num):
     '''Combines the RCFD and RCON variables into one variable. If RCFD is a number it takes the RCFD, RCON otherwise '''
     df_rcs['RC{}'.format(elem)] = df_rcs.apply(lambda x: x['RCFD{}'.format(elem)] if not np.isnan(x['RCFD{}'.format(elem)]) and  round(x['RCFD{}'.format(elem)]) != 0 else (x['RCON{}'.format(elem)]), axis = 1) 
 
-### Make a total securitization and total loan sales variable
-'''First fill the NaNs with zeros. Since we know that a NaN is a true zero'''
-cols_nanfill = ['RCB705','RCB706','RCB707','RCB708','RCB709','RCB710','RCB711','RCB790','RCB791','RCB792','RCB793','RCB794','RCB795','RCB796']
-df_rcs[cols_nanfill] = df_rcs[cols_nanfill].fillna(value = 0)
-    
+### Make a total securitization and total loan sales variable 
 df_rcs['ls_sec_tot'] = df_rcs[['RCB705','RCB706','RCB707','RCB708','RCB709','RCB710','RCB711']].sum(axis = 1, skipna = True)
 df_rcs['ls_nonsec_tot'] = df_rcs[['RCB790','RCB791','RCB792','RCB793','RCB794','RCB795','RCB796']]\
                             .sum(axis = 1, skipna = True)
 df_rcs['ls_tot'] = df_rcs.ls_sec_tot + df_rcs.ls_nonsec_tot
+
+### Make variables for the total credit exposure of the loan sales
+df_rcs['ls_sec_credex'] = df_rcs[['RCB712','RCB713','RCB714','RCB715','RCB716','RCB717','RCB718',\
+                                  'RCB719','RCB720','RCB721','RCB722','RCB723','RCB724','RCB725',\
+                                  'RCC393','RCC394','RCC395','RCC396','RCC397','RCC398','RCC399',\
+                                  'RCC400','RCC401','RCC402','RCC403','RCC404','RCC405','RCC406',\
+                                  'RCHU09','RCFDHU10','RCFDHU11','RCFDHU12','RCFDHU13','RCFDHU14','RCHU15']].\
+                          sum(axis = 1, skipna = True) 
+                          
+df_rcs['ls_nonsec_credex'] = df_rcs[['RCB797','RCB798','RCB799','RCB800','RCB801','RCB802','RCB803']].\
+                             sum(axis = 1, skipna = True)
+                             
+df_rcs['ls_credex'] = df_rcs.ls_sec_credex + df_rcs.ls_nonsec_credex                     
 #------------------------------------------
 ## Load ri data    
 for i in range(start,end):
