@@ -176,7 +176,7 @@ ax.plot(allow_sum.iloc[:,2], linestyle = line_styles[2], label = labels[2], colo
 ax.grid(False)
 
 ax2 = ax.twinx()
-ax.set(xlabel='Year', ylabel = 'Off-balance Loan Sales (in %)')
+ax2.set(xlabel='Year', ylabel = 'Off-balance Loan Sales (in %)')
 ax2.plot(allow_sum.iloc[:,1], linestyle = line_styles[1], label = labels[1], color = 'black')
 ax2.grid(False)
 
@@ -190,34 +190,88 @@ fig.savefig('Fig5_allowance_rates.png')
 
 #-----------------------------------------
 # Figure 6: Credit exposure loan sales
+# Make the variables
+credex_secls = df[df.ls_sec_tot > 0]['lsseccredex_ratio'].mean(level = [1,1]).droplevel(level = 0).multiply(1e2)
+credex_nonsecls = df[df.ls_nonsec_tot > 0]['lsnonseccredex_ratio'].mean(level = [1,1]).droplevel(level = 0).multiply(1e2)
+credex_ls = df[df.ls_tot > 0]['lscredex_ratio'].mean(level = [1,1]).droplevel(level = 0).multiply(1e2)
 
-credex_sum = df_sec[['lsseccredex_ratio','lsnonseccredex_ratio','lscredex_ratio']].mean(level = [1,1]).droplevel(level = 0).multiply(1e2)
+credex_sum = [credex_secls,credex_nonsecls,credex_ls]
 
 ## Plot
 labels = ['Securitized','Non-Securitized','Total']
 line_styles = ['-','-.',':']
 
 fig, ax = plt.subplots(figsize=(12, 8))
-plt.title('Maximum Credit Exposure of Loan Sales')
+plt.title('Maximum Credit Exposure of Loan Sales to Loan Sales')
 ax.set(xlabel='Year', ylabel = 'Maximum Credit Exposure (in %)')
-for i in range(credex_sum.shape[1]):
-    ax.plot(allow_sum.iloc[:,i], linestyle = line_styles[i], label = labels[i], color = 'black')
-ax.set(xlabel='Year', ylabel = 'Off-balance Loan Sales (in %)')
+for i in range(3):
+    ax.plot(credex_sum[i], linestyle = line_styles[i], label = labels[i], color = 'black')
 ax.legend()
 fig.tight_layout()
 plt.show()
 
-fig.savefig('Fig6_credex_ratio.png')
+fig.savefig('Fig6a_credex_ratio.png')
+
+#-----------------------------------------
+## Different scaling
+credex_secls_alt = (df[df.ls_sec_tot > 0].ls_sec_credex / df[df.ls_sec_tot > 0].RC2170).replace(np.inf, 0).mean(level = [1,1]).droplevel(level = 0).multiply(1e2)
+credex_nonsecls_alt = (df[df.ls_nonsec_tot > 0].ls_nonsec_credex / df[df.ls_nonsec_tot > 0].RC2170).replace(np.inf, 0).mean(level = [1,1]).droplevel(level = 0).multiply(1e2)
+credex_ls_alt = (df[df.ls_tot > 0].ls_credex / df[df.ls_tot > 0].RC2170).replace(np.inf, 0).mean(level = [1,1]).droplevel(level = 0).multiply(1e2)
+allowratio_alt = (df.RIAD3123 / df.RC2170).replace(np.inf, 0).mean(level = [1,1]).droplevel(level = 0).multiply(1e2)
+
+credex_sum_alt = [credex_secls_alt,credex_nonsecls_alt,credex_ls_alt,allowratio_alt]
+
+labels = ['Sec. Loan Sales','Non-Sec. Loan Sales','TotalLoan Sales', 'Allowance']
+line_styles = ['-','-.',':']
+
+fig, ax = plt.subplots(figsize=(12, 8))
+plt.title('Maximum Credit Exposure of Loan Sales to Total Assets')
+ax.set(xlabel='Year', ylabel = 'Maximum Credit Exposure to TA (in %)')
+for i in range(3):
+    ax.plot(credex_sum_alt[i], linestyle = line_styles[i], label = labels[i], color = 'black')
+ax.grid(False)
+    
+ax2 = ax.twinx()
+ax2.set(xlabel='Year', ylabel = 'Allowance to TA (in %)')
+ax2.plot(credex_sum_alt[3], linestyle = line_styles[i], label = labels[i], color = 'black')
+ax2.grid(False)
+
+h1, l1 = ax.get_legend_handles_labels()
+h2, l2 = ax2.get_legend_handles_labels()
+ax.legend(h1+h2, l1+l2, loc=3)
+#ax.legend()
+fig.tight_layout()
+plt.show()
+
+fig.savefig('Fig6b_credex_ratio_alt.png')
 #-----------------------------------------
 # Figure 7: Concentration of securitizing banks
 '''This figure displays the concentration among loan selling banks'''
 
+#NOTE: Make it for one specific year?
+
 ## Make the array to plot
-sec_sum_sort = df_sec.groupby(df_sec.index.get_level_values(0)).sec_tot.sum().sort_values(ascending = False)
+ls_sum_sort = df[df.ls_tot > 0].groupby(df[df.ls_tot > 0].index.get_level_values(0)).ls_tot.sum().sort_values(ascending = False)
 
 groups = [100,75,50,25,10,5]
-total_sec = sec_sum_sort.sum()
-sec_cons = []
+total_ls = ls_sum_sort.sum()
+ls_cons = []
 
 for i in groups:
-    sec_cons.append(sec_sum_sort[:i].sum() / total_sec * 100)
+    ls_cons.append(ls_sum_sort[:i].sum() / total_ls * 100)
+    
+x_values = ['100 banks','75 banks','50 banks','25 banks','10 banks','5 banks']
+
+fig, ax = plt.subplots(figsize=(12, 8))
+plt.title('Total Amount of Loan Sales: $1.4 trillion')
+ax.set(xlabel = 'Percentage of Total Loan Sales (in %)')
+ax.barh(x_values, ls_cons, color = 'grey')
+for i in range(len(groups)):
+    ax.text(ls_cons[i] + 0.5, i, str(round(ls_cons[i],1)), fontweight = 'bold', verticalalignment='center')
+fig.tight_layout()
+
+fig.savefig('Fig7_concentration_banks.png')
+
+#-----------------------------------------
+# Figure 8: Top 10 banks
+#TODO: Add the names

@@ -184,8 +184,8 @@ df['allowratio_off_tot'] = (df.RCONB557/ (df.RC2122 + df.ls_tot)).replace(np.inf
 df['allowratio_tot_tot'] = ((df.RIAD3123 + df.RCONB557) / (df.RC2122 + df.ls_tot)).replace(np.inf, 0)
 
 ## Credit exposure loan sales ratio
-df['lsseccredex_ratio'] = (df.ls_sec_credex / df.ls_tot).replace(np.inf, 0)
-df['lsnonseccredex_ratio'] = (df.ls_nonsec_credex / df.ls_tot).replace(np.inf, 0)
+df['lsseccredex_ratio'] = (df.ls_sec_credex / df.ls_sec_tot).replace(np.inf, 0)
+df['lsnonseccredex_ratio'] = (df.ls_nonsec_credex / df.ls_nonsec_tot).replace(np.inf, 0)
 df['lscredex_ratio'] = (df.ls_credex / df.ls_tot).replace(np.inf, 0)
 
 ## Loan provision ratio
