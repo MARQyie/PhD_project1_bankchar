@@ -32,25 +32,28 @@ df = pd.read_csv('df_wp1_clean.csv', index_col = 0 )
 df.set_index(['IDRSSD','date'],inplace=True)
 
 #------------------------------------------
-# Split the dataframes on securitizer and non-securitizers
-
-# TODO: Change the variable of sec_tot, add non-securitized loan sales and the total group of loan sales
-df_sec = df[df.sec_tot > 0]
-df_nonsec = df[df.sec_tot == 0]
-
-#------------------------------------------
 # Make function that creates the tables
 def makeTables(df,variables,row_labels,column_labels):
     '''This functions creates the summary statistic tables used in this script.'''
+    
+    ## Total Sample
     table = pd.DataFrame(df[variables].describe().loc[['mean','50%','std'],:].T.to_numpy(),\
                 index = row_labels)
+    ## Split the df
+    df_secls = df[df.ls_sec_tot > 0]
+    df_nonsecls = df[df.ls_nonsec_tot > 0]
+    df_nonls = df[df.ls_tot == 0]
 
-    ## Securitizers
-    table = pd.concat([table, pd.DataFrame(df_sec[variables].describe().loc[['mean','50%','std'],:].T.to_numpy(),\
+    ## Securitized Loan Sellers
+    table = pd.concat([table, pd.DataFrame(df_secls[variables].describe().loc[['mean','50%','std'],:].T.to_numpy(),\
+                    index = row_labels)], axis = 1)
+    
+    ## Non-securitized Loan Sellers
+    table = pd.concat([table, pd.DataFrame(df_nonsecls[variables].describe().loc[['mean','50%','std'],:].T.to_numpy(),\
                     index = row_labels)], axis = 1)
     
     ## Non-securitizers
-    table = pd.concat([table, pd.DataFrame(df_nonsec[variables].describe().loc[['mean','50%','std'],:].T.to_numpy(),\
+    table = pd.concat([table, pd.DataFrame(df_nonls[variables].describe().loc[['mean','50%','std'],:].T.to_numpy(),\
                     index = row_labels) ], axis = 1)
     
     ## Make columns a multi index
@@ -61,17 +64,19 @@ def makeTables(df,variables,row_labels,column_labels):
 #------------------------------------------
 # Set column_labels
 list_multicolumns = [('Total Sample', 'Mean'), ('Total Sample', 'Median'), ('Total Sample', 'SD'),\
-                         ('Securitizers', 'Mean'), ('Securitizers', 'Median'), ('Securitizers', 'SD'),\
-                         ('Non-securitizers', 'Mean'), ('Non-securitizers', 'Median'), ('Non-securitizers', 'SD')]
+        ('Securitized Loan Sellers', 'Mean'), ('Securitized Loan Sellers', 'Median'), ('Securitized Loan Sellers', 'SD'),\
+        ('Non-securitized Loan Sellers', 'Mean'), ('Non-securitized Loan Sellers', 'Median'), ('Non-securitized Loan Sellers', 'SD'),\
+        ('Non-loan Sellers', 'Mean'), ('Non-loan Sellers', 'Median'), ('Non-loan Sellers', 'SD')]
 
 #------------------------------------------
 # Table 1: Balance sheet structure
 ## Set labels and variables
 labels_balance = ['Ln Total Assets','Ln Total On- and off Balance Assets',\
                   'Liquidity Ratio','Trading Assets Ratio','Loan Ratio','Loan-to-Deposits',\
-                  'Deposit Ratio','Share of Retail Deposits','Capital Ratio','Loan Growth','Asset Growth']
+                  'Deposit Ratio','Share of Retail Deposits','Capital Ratio','Total Time Deposits',\
+                  'Wholesale Funding','Credit Derivatives Ratio','Loan Growth','Asset Growth']
 vars_balance = ['size', 'tot_size', 'liqratio', 'traderatio', 'loanratio', 'ltdratio',\
-                'depratio', 'retaildep', 'eqratio', 'dloan', 'dass']
+                'depratio', 'retaildep', 'eqratio', 'tot_time_dep_ta', 'wholesale','cdta', 'dloan', 'dass']
 
 ## Make table
 table_balance = makeTables(df,vars_balance,labels_balance,list_multicolumns)
@@ -81,8 +86,8 @@ table_balance.to_excel('Table_1_balance_sheet.xlsx')
 
 #------------------------------------------
 # Table 2: Loan portfolio
-labels_loan = ['Commercial Loan Ratio','Agricultural Loan Ratio']
-vars_loan = ['comloanratio', 'agriloanratio']
+labels_loan = ['Mortgage Loan Ratio','HEL Ratio','Commercial Loan Ratio','Agricultural Loan Ratio']
+vars_loan = ['mortratio','HEL','comloanratio', 'agriloanratio']
 
 ## Make table
 table_loan = makeTables(df,vars_loan,labels_loan,list_multicolumns)
@@ -103,8 +108,9 @@ table_regcap.to_excel('Table_3_regulatory_capital.xlsx')
 
 #------------------------------------------
 # Table 4: Risk measures
-labels_risk = ['RWATA Ratio','Charge-off Ratio','Allowance Ratio','Provision Ratio','Z-score']
-vars_risk = ['rwata', 'coffratio', 'allowratio', 'provratio', 'zscore']
+labels_risk = ['RWATA Ratio','Charge-off Ratio','Total Charge-off Ratio','On-Balance Allowance Ratio',\
+               'Off-Balance Allowance Ratio','Provision Ratio','Maximum Credit Exposure Loan Sales']
+vars_risk = ['rwata', 'coffratio','coffratio_tot', 'allowratio_on_on','allowratio_off_off', 'provratio','lscredex_ratio']
 
 ## Make table
 table_risk = makeTables(df,vars_risk,labels_risk,list_multicolumns)

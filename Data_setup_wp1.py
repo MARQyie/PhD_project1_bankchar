@@ -34,6 +34,7 @@ path_call = r'X:/My Documents/Data/Data_call_reports_FFIEC2'
 # Set filenames
 file_info1 = r'/call0{}12.xpt'
 file_info2 = r'/call{}12.xpt'
+file_por = r'/{}/FFIEC CDR Call Bulk POR 1231{}.txt'
 file_rc = r'/{}/FFIEC CDR Call Schedule RC 1231{}.txt'
 file_rcb1 = r'/{}/FFIEC CDR Call Schedule RCB 1231{}.txt'
 file_rcb2 = r'/{}/FFIEC CDR Call Schedule RCB 1231{}(1 of 2).txt'
@@ -62,6 +63,7 @@ file_ribii = r'/{}/FFIEC CDR Call Schedule RIBII 1231{}.txt'
 # Set variables needed per csv
 ## From balance sheet
 vars_info = ['RSSD9001','RSSD9999','RSSD9048','RSSD9424','RSSD9170','RSSD9210']
+vars_por = ['IDRSSD', 'Financial Institution Name']
 vars_rc = '|'.join(['IDRSSD','2170','3545','3548','2200','0081','0071','3210','2948',\
                     '2800','B993','B995','3200']) 
 vars_rcb = '|'.join(['IDRSSD','1771','1773','0213','1287','1754'])
@@ -70,7 +72,7 @@ vars_rcc = '|'.join(['IDRSSD','1410','1415','1420','1797','1460','1288','1590','
 vars_rce = '|'.join(['IDRSSD','B549','B550','6648','2604','J473','J474','B535','2081'])
 vars_rcg = '|'.join(['IDRSSD', 'B557'])
 vars_rcl = '|'.join(['IDRSSD','8725','8726','8727','8728','A126','A127','8723','8724','3814'])
-vars_rcl_cd = '|'.join(['IDRSSD', 'C968','C969','C970','C971','C972','C973','C974','C975'])
+vars_rcl_cd = '|'.join(['IDRSSD','A534','A535', 'C968','C969','C970','C971','C972','C973','C974','C975'])
 vars_rcr = '|'.join(['IDRSSD','B704','A222','3128','7204','7205','7206','A223'])
 vars_rcs = '|'.join(['IDRSSD','B705','B706','B707','B708','B709','B710','B711',\
                      'B790','B791','B792','B793','B794','B795','B796',\
@@ -88,6 +90,7 @@ vars_rib = '|'.join(['IDRSSD', '4230','4635','3123'])
 # Load the data
 ## define the dfs
 df_info = pd.DataFrame()
+df_por = pd.DataFrame()
 df_rc = pd.DataFrame()
 df_rcb = pd.DataFrame()
 df_rcc = pd.DataFrame()
@@ -114,6 +117,15 @@ df_info.rename(columns = {'RSSD9001':'IDRSSD', 'RSSD9999':'date'}, inplace = Tru
 
 ### Change date to only the year
 df_info.date = (df_info.date.round(-4) / 1e4).astype(int)
+
+#------------------------------------------
+## Load por data
+for i in range(start,end):
+    df_load = pd.read_csv((path_call + file_por).format(i,i), sep='\t',  skiprows = [1,2])
+    df_load = df_load[vars_por]
+    df_load['date'] = int('{}'.format(i))
+    df_por = df_por.append(df_load)
+
 #------------------------------------------
 ## Load rc data
 for i in range(start,end):
@@ -200,7 +212,7 @@ for i,elem in enumerate(var_num):
     df_rcl['RC{}'.format(elem)] = df_rcl.apply(lambda x: x['RCFD{}'.format(elem)] if not np.isnan(x['RCFD{}'.format(elem)]) and  round(x['RCFD{}'.format(elem)]) != 0 else (x['RCON{}'.format(elem)]), axis = 1)    
 #------------------------------------------
 ## load rcl_cd data
-for i in range(start + 5,end):
+for i in range(start,end):
     if i < 2009:
         df_load = pd.read_csv((path_call + file_rcl1).format(i,i), \
                  sep='\t',  skiprows = [1,2])
@@ -219,11 +231,16 @@ for i in range(start + 5,end):
     df_rcl_cd = df_rcl_cd.append(df_load)
 
 ### Merge RCFD and RCON cols    
-var_num = ['C968','C969','C970','C971','C972','C973','C974','C975']
+var_num = ['A534','A535','C968','C969','C970','C971','C972','C973','C974','C975']
 
 for i,elem in enumerate(var_num):
     '''Combines the RCFD and RCON variables into one variable. If RCFD is a number it takes the RCFD, RCON otherwise '''
-    df_rcl_cd['RC{}'.format(elem)] = df_rcl_cd.apply(lambda x: x['RCFD{}'.format(elem)] if not np.isnan(x['RCFD{}'.format(elem)]) and  round(x['RCFD{}'.format(elem)]) != 0 else (x['RCON{}'.format(elem)]), axis = 1) 
+    df_rcl_cd['RC{}'.format(elem)] = df_rcl_cd.apply(lambda x: x['RCFD{}'.format(elem)] if not np.isnan(x['RCFD{}'.format(elem)]) and  round(x['RCFD{}'.format(elem)]) != 0 else (x['RCON{}'.format(elem)]), axis = 1)
+    
+df_rcl_cd['cd_sold'] = df_rcl_cd[['RCA534','RCC968','RCC970','RCC972','RCC974']].sum(axis = 1)
+df_rcl_cd['cd_pur'] = df_rcl_cd[['RCA535','RCC969','RCC971','RCC973','RCC975']].sum(axis = 1)
+df_rcl_cd['cd_net']  = df_rcl_cd.cd_pur - df_rcl_cd.cd_sold
+  
 #------------------------------------------
 ## Load rcr data
 for i in range(start,end):
@@ -375,6 +392,7 @@ df_raw = df_raw.merge(df_rcs, on = ['IDRSSD', 'date'], how = 'left')
 df_raw = df_raw.merge(df_ri, on = ['IDRSSD', 'date'], how = 'left')
 df_raw = df_raw.merge(df_rib, on = ['IDRSSD', 'date'], how = 'left')
 df_raw = df_raw.merge(df_info, on = ['IDRSSD', 'date'], how = 'left')
+df_raw = df_raw.merge(df_por, on = ['IDRSSD', 'date'], how = 'left')
 
 df_raw.to_csv('df_assetcomp_raw.csv')
 

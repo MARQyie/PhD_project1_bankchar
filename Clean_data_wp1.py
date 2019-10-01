@@ -95,11 +95,15 @@ df = df[~df.IDRSSD.isin(drop_banks)]
 # Drop missings in Total assets, liquidity, loans, deposits, capital and income, RWA
 ## Sum cash and securities, label as liquid assets
 df['liqass'] = df[['RC0071','RC0081','RC1773','RC1754']].sum(axis = 1, skipna = True) 
-#TODO add RCON1350 (splits in BB987 + B989)
+#RCON1350 (splits in BB987 + B989)
 
 ## Drop the NaNs
 nandrop_cols = ['RC2170','RC2122','RC2200','RC3210','RIAD4340','RCG641','liqass']
 df.dropna(subset = nandrop_cols , inplace = True)
+
+#------------------------------------------
+# Drop negative values in Total assets and loans
+df = df[(df.RC2170 >= 0) | (df.RC2122 >= 0)]
 
 #------------------------------------------
 # Make new variables
@@ -132,15 +136,19 @@ df['retaildep'] = ((df.RCONB549 + df.RCONB550) / df.RC2200).replace(np.inf, 0)
 
 ## Wholesale funding
 '''First combine some variables'''
-df['tot_time_dep'] = df.apply(lambda x: np.sum(x[['RCON6648','RCON2604']]) if x.date < 2010  \
-                     else np.sum(x[['RCON6648','RCONJ473','RCONJ474']]), axis = 1)
-df['fed_repo'] = df.apply(lambda x: x.RC2800 if x.date == 2001 else np.sum(x[['RCONB993','RCONB995']]), axis = 1)
-
-df['wholesale'] = df[['tot_time_dep','fed_repo', 'RCON3200']].aggregate(np.sum).\
+df['tot_time_dep'] = df[['RCON6648','RCON2604','RCON6648','RCONJ473','RCONJ474']].sum(axis = 1)
+df['fed_repo'] = df[['RC2800','RCONB993','RCONB995']].sum(axis = 1)
+df['wholesale'] = df[['tot_time_dep','fed_repo', 'RCON3200']].sum(axis = 1).\
                   divide(df.RC2170).replace(np.inf, 0)
+                  
+df['tot_time_dep_ta'] = df[['RCON6648','RCON2604','RCON6648','RCONJ473','RCONJ474']].sum(axis = 1).divide(df.RC2170).replace(np.inf, 0)
+df['fed_repo_ta'] = df[['RC2800','RCONB993','RCONB995']].sum(axis = 1).divide(df.RC2170).replace(np.inf, 0)
 
 ## Simple equity ratio
 df['eqratio'] = (df.RC3210 / df.RC2170).replace(np.inf, 0)
+
+## Credit derivatives to total assets
+df['cdta'] = (df.cd_net / df.RC2170).replace(np.inf, 0)
 
 ## Loan growth
 df['dloan'] = df.groupby('IDRSSD').RC2122.pct_change()
@@ -149,9 +157,7 @@ df['dloan'] = df.groupby('IDRSSD').RC2122.pct_change()
 df['dass'] = df.groupby('IDRSSD').RC2170.pct_change()
 
 ## Mortgages to loans
-df['mortratio'] = df.apply(lambda x: np.sum(x[['RC1415','RC1420','RC1460','RC1797']]) / x.RC2122 \
-                  if x.date < 2008 else np.sum(x[['RCONF158','RCONF149','RC1420','RC1460','RC1797']])\
-                  / x.RC2122, axis = 1).replace(np.inf, 0)
+df['mortratio'] = (df[['RCON1415','RCONF158','RCONF159','RC1420','RC1460','RC1797']].sum(axis = 1).divide(df.RC2122)).replace(np.inf, 0)
 
 ## Home Equity Lines to loans
 df['HEL'] = ((df.RCON3814) / df.RC2122).replace(np.inf, 0)
@@ -182,6 +188,8 @@ df['allowratio_tot_off'] = ((df.RIAD3123 + df.RCONB557) / (df.ls_tot)).replace(n
 df['allowratio_on_tot'] = (df.RIAD3123 / (df.RC2122 + df.ls_tot)).replace(np.inf, 0)
 df['allowratio_off_tot'] = (df.RCONB557/ (df.RC2122 + df.ls_tot)).replace(np.inf, 0)
 df['allowratio_tot_tot'] = ((df.RIAD3123 + df.RCONB557) / (df.RC2122 + df.ls_tot)).replace(np.inf, 0)
+
+df['tot_allowance'] = (df.RIAD3123 + df.RCONB557).replace(np.inf, 0)
 
 ## Credit exposure loan sales ratio
 df['lsseccredex_ratio'] = (df.ls_sec_credex / df.ls_sec_tot).replace(np.inf, 0)
@@ -339,9 +347,17 @@ df = df[df.RC7205 < df.RC7205.quantile(q = 0.999)]
 
 sns.boxplot(df.RC7206) # No action
 
+## Credit Derivatives
+sns.boxplot(df.cd_net) # 2 outliers, take out
+df = df[~df.cd_net.isin(df.cd_net.nlargest(n = 2))]
+
 #------------------------------------------
 # Check obs per years
 year_obs = df.date.value_counts()
+
+#------------------------------------------
+# Change the name column name
+df.rename(columns = {'Financial Institution Name':'name'}, inplace = True)
 
 #------------------------------------------
 ## Save df

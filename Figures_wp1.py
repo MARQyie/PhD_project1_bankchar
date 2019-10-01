@@ -24,6 +24,8 @@ sns.set(style = 'whitegrid', font_scale = 1.75, palette = 'Greys_d')
 import os
 os.chdir(r'X:\My Documents\PhD\Materials_dissertation\2-Chapter_2-bank_char')
 
+from scipy import stats
+
 #------------------------------------------
 # Load df
 df = pd.read_csv('df_wp1_clean.csv', index_col = 0)
@@ -221,7 +223,7 @@ allowratio_alt = (df.RIAD3123 / df.RC2170).replace(np.inf, 0).mean(level = [1,1]
 
 credex_sum_alt = [credex_secls_alt,credex_nonsecls_alt,credex_ls_alt,allowratio_alt]
 
-labels = ['Sec. Loan Sales','Non-Sec. Loan Sales','TotalLoan Sales', 'Allowance']
+labels = ['Sec. Loan Sales','Non-Sec. Loan Sales','Total Loan Sales', 'Allowance']
 line_styles = ['-','-.',':']
 
 fig, ax = plt.subplots(figsize=(12, 8))
@@ -246,12 +248,10 @@ plt.show()
 fig.savefig('Fig6b_credex_ratio_alt.png')
 #-----------------------------------------
 # Figure 7: Concentration of securitizing banks
-'''This figure displays the concentration among loan selling banks'''
-
-#NOTE: Make it for one specific year?
+'''This figure displays the concentration among loan selling banks in 2018'''
 
 ## Make the array to plot
-ls_sum_sort = df[df.ls_tot > 0].groupby(df[df.ls_tot > 0].index.get_level_values(0)).ls_tot.sum().sort_values(ascending = False)
+ls_sum_sort = df[(df.ls_tot > 0) & (df.index.get_level_values(1) == '2018-12-30')].ls_tot.sort_values(ascending = False)
 
 groups = [100,75,50,25,10,5]
 total_ls = ls_sum_sort.sum()
@@ -263,7 +263,7 @@ for i in groups:
 x_values = ['100 banks','75 banks','50 banks','25 banks','10 banks','5 banks']
 
 fig, ax = plt.subplots(figsize=(12, 8))
-plt.title('Total Amount of Loan Sales: $1.4 trillion')
+plt.title('Total Amount of Loan Sales: $61.3 billion') 
 ax.set(xlabel = 'Percentage of Total Loan Sales (in %)')
 ax.barh(x_values, ls_cons, color = 'grey')
 for i in range(len(groups)):
@@ -273,5 +273,119 @@ fig.tight_layout()
 fig.savefig('Fig7_concentration_banks.png')
 
 #-----------------------------------------
-# Figure 8: Top 10 banks
-#TODO: Add the names
+# NOT INFORMATIVE
+# Figure : Top 10 banks in 2018
+## Select the top 10 banks
+top_10_sec = df[df.index.get_level_values(1) == '2018-12-30'].ls_sec_tot.divide(df.RC2170).multiply(1e2).sort_values(ascending = False).iloc[:10]
+top_10_nonsec = df[df.index.get_level_values(1) == '2018-12-30'].ls_nonsec_tot.divide(df.RC2170).multiply(1e2).sort_values(ascending = False).iloc[:10]
+
+## Add the IDRSSDs
+name_list = df.name
+
+top_10_sec = pd.concat([top_10_sec, name_list], axis = 1, join = 'inner').sort_values(by = 0, ascending = False)
+top_10_nonsec = pd.concat([top_10_nonsec, name_list], axis = 1, join = 'inner').sort_values(by = 0, ascending = False)
+
+fig, ax = plt.subplots(figsize=(12, 8))
+plt.title('Top 10 Banks Loan Sales-to-Total Assets') 
+ax.set(xlabel = 'Percentage of Total Assets (in %)')
+ax.bar(top_10_sec.name, top_10_sec.iloc[:,0])
+plt.xticks(rotation='vertical')
+
+#-----------------------------------------
+# Figure 8: Number of Branches vs. LS/TA
+
+fig, ax = plt.subplots(figsize=(12, 8))
+plt.title('Number of Branches vs. Loan Sales') 
+ax.set(ylabel = 'Number of Branches',xlabel = 'Loan Sales-to-Total Assets (in %)')
+ax.scatter(df.ls_sec_tot.divide(df.RC2170).multiply(1e2)[df.ls_sec_tot > 0.0], df[df.ls_sec_tot > 0.0].num_branch,\
+           color = 'black', marker = 'v', label = 'Securitized Loan Sales',\
+           alpha = 0.5)
+ax.scatter(df.ls_nonsec_tot.divide(df.RC2170).multiply(1e2)[df.ls_nonsec_tot > 0.0], \
+           df[df.ls_nonsec_tot > 0.0].num_branch, color = 'grey', marker = '8', label = 'Non-securitized Loan Sales',
+           alpha = 0.5)
+ax.legend()
+fig.tight_layout()
+plt.show()
+
+fig.savefig('Fig8_numbranch_lsta.png')
+
+#-----------------------------------------
+# Figure 9: Cap/TA vs. LS/TA
+## For the regression lines
+slope_sec, intercept_sec,_ ,_ ,_ = stats.linregress(df.ls_sec_tot.divide(df.RC2170).multiply(1e2)[df.ls_sec_tot > 0.0], \
+                                   df[df.ls_sec_tot > 0.0].eqratio)
+slope_nonsec, intercept_nonsec,_ ,_ ,_ = stats.linregress(df.ls_nonsec_tot.divide(df.RC2170).multiply(1e2)[df.ls_nonsec_tot > 0.0], \
+                                   df[df.ls_nonsec_tot > 0.0].eqratio)
+
+fig, ax = plt.subplots(figsize=(12, 8))
+plt.title('Capital-to-Total Assets vs. Loan Sales (in %)') 
+ax.set(ylabel = 'Capital-to-Total Assets',xlabel = 'Loan Sales-to-Total Assets (in %)')
+ax.scatter(df.ls_sec_tot.divide(df.RC2170).multiply(1e2)[df.ls_sec_tot > 0.0], df[df.ls_sec_tot > 0.0].eqratio,\
+           color = 'black', marker = 'v', label = 'Securitized Loan Sales',\
+           alpha = 0.5)
+ax.plot(df.ls_sec_tot.divide(df.RC2170).multiply(1e2)[df.ls_sec_tot > 0.0],\
+        slope_sec*df.ls_sec_tot.divide(df.RC2170).multiply(1e2)[df.ls_sec_tot > 0.0]+intercept_sec,\
+        color = 'black', label = 'Securitized Loan Sales')
+
+ax.scatter(df.ls_nonsec_tot.divide(df.RC2170).multiply(1e2)[df.ls_nonsec_tot > 0.0], \
+           df[df.ls_nonsec_tot > 0.0].eqratio, color = 'grey', marker = '8', label = 'Non-securitized Loan Sales',
+           alpha = 0.5)
+ax.plot(df.ls_nonsec_tot.divide(df.RC2170).multiply(1e2)[df.ls_nonsec_tot > 0.0],\
+        slope_nonsec*df.ls_nonsec_tot.divide(df.RC2170).multiply(1e2)[df.ls_nonsec_tot > 0.0]+intercept_nonsec,\
+        color = 'grey', linestyle = '-.', label = 'Non-securitized Loan Sales')
+ax.legend()
+fig.tight_layout()
+plt.show()
+
+fig.savefig('Fig9_capta_lsta.png')
+
+#-----------------------------------------
+# Figure 10: Credit derivatives/TA vs. LS/TA
+## Make the dfs
+ls_year = df['ls_tot'].sum(level = [1,1])
+ls_year = ls_year.droplevel(level = 0)
+ls_year = ls_year.divide(1e6)
+
+cd_pur_year = df['cd_pur'].sum(level = [1,1])
+cd_pur_year = cd_pur_year.droplevel(level = 0)
+cd_pur_year = cd_pur_year.divide(1e6)
+
+cd_sold_year = df['cd_sold'].sum(level = [1,1])
+cd_sold_year = cd_sold_year.droplevel(level = 0)
+cd_sold_year = cd_sold_year.divide(1e6)
+
+fig, ax = plt.subplots(figsize=(12, 8))
+plt.title('Loan Sales and Credit Derivatives') 
+ax.set(ylabel = 'Total Loan Sale (In $ Billion)', xlabel = 'Year')
+ax.plot(ls_year, color = 'black', label = 'Total Loan Sales')
+
+ax2 = ax.twinx()
+ax2.set(xlabel='Year', ylabel = 'Credit Derivatives (In $ Billion)')
+ax2.plot(cd_pur_year, color = 'black', linestyle = '-.', label = 'Credit Derivatives Purchased')
+ax2.plot(cd_sold_year, color = 'black', linestyle = ':', label = 'Credit Derivatives Sold')
+ax2.grid(False)
+
+h1, l1 = ax.get_legend_handles_labels()
+h2, l2 = ax2.get_legend_handles_labels()
+ax.legend(h1+h2, l1+l2, loc=1)
+
+fig.tight_layout()
+plt.show()
+
+fig.savefig('Fig10a_cdta_lsta.png')
+
+#---------------------------------------------
+# Without Loan sales
+fig, ax = plt.subplots(figsize=(12, 8))
+plt.title('Amount of Credit Derivatives') 
+ax.set(xlabel='Year', ylabel = 'Credit Derivatives (In $ Billion)')
+ax.plot(cd_pur_year, color = 'black', label = 'Credit Derivatives Purchased')
+ax.plot(cd_sold_year, color = 'black',linestyle = '-.', label = 'Credit Derivatives Sold')
+
+ax.legend()
+
+fig.tight_layout()
+plt.show()
+
+fig.savefig('Fig10b_cd.png')
+
