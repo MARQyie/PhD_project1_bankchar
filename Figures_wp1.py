@@ -164,7 +164,7 @@ fig.savefig('Fig4b_stacked_cat_nonsecls.png')
 #-----------------------------------------
 # Figure 5: Plot the allowance ratios
 
-allow_sum = df[['allowratio_on_on','allowratio_off_off','allowratio_tot_tot']].mean(level = [1,1]).droplevel(level = 0).multiply(1e2)
+allow_sum = df[df.RCONB557 > 0.0][['allowratio_on_on','allowratio_off_on','allowratio_tot_on']].mean(level = [1,1]).droplevel(level = 0).multiply(1e2)
 
 ## Plot
 labels = ['On-Balance','Off-Balance','On + Off-balance']
@@ -389,3 +389,34 @@ plt.show()
 
 fig.savefig('Fig10b_cd.png')
 
+#-----------------------------------------------
+# Figure 11: Charge-offs 
+fig, ax = plt.subplots(figsize=(12, 8))
+plt.title('On-balance and Total Charge-offs')
+ax.set(xlabel='Year', ylabel = 'In $ Billion')
+ax.plot(df.RIAD4635.sum(level = [1,1]).droplevel(level = 0).divide(1e6), linestyle = '-',\
+        color = 'black', label = 'On-balance Charge-offs')
+ax.plot(df[['RIADB747','RIADB748','RIADB749','RIADB750','RIADB751','RIADB752','RIADB753','RIAD4635']].\
+        sum(axis = 1).sum(level = [1,1]).droplevel(level = 0).divide(1e6), linestyle = '-.',\
+        color = 'black', label = 'Total Charge-offs')
+ax.grid(True)
+ax.legend()
+fig.tight_layout()
+plt.show()
+
+fig.savefig('Fig11_charge_offs.png')
+
+#-----------------------------------------------
+# Figure 12: Total loans + maximum exposure loan sales
+## Make variable
+tot_credex = df.ls_credex + df.RC2122
+
+#
+fig, ax = plt.subplots(figsize=(12, 8))
+plt.title('Off-balance allowances for credit risk to loan loss allowances')
+ax.set(xlabel='Year', ylabel = 'in %')
+ax.plot(df[df.RCONB557 > 0.0].RCONB557.sum(level = [1,1]).droplevel(level = 0).divide(df[df.RCONB557 > 0.0].RIAD3123.sum(level = [1,1]).droplevel(level = 0)).multiply(1e2), linestyle = '-',\
+        color = 'black')
+ax.grid(True)
+
+fig.savefig('Fig12_off_to_loan_allowances.png')

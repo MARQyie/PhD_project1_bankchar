@@ -148,7 +148,8 @@ df['fed_repo_ta'] = df[['RC2800','RCONB993','RCONB995']].sum(axis = 1).divide(df
 df['eqratio'] = (df.RC3210 / df.RC2170).replace(np.inf, 0)
 
 ## Credit derivatives to total assets
-df['cdta'] = (df.cd_net / df.RC2170).replace(np.inf, 0)
+df['cd_pur_ta'] = (df.cd_pur / df.RC2170).replace(np.inf, 0)
+df['cd_sold_ta'] = (df.cd_sold / df.RC2170).replace(np.inf, 0)
 
 ## Loan growth
 df['dloan'] = df.groupby('IDRSSD').RC2122.pct_change()

@@ -40,19 +40,24 @@ def makeTables(df,variables,row_labels,column_labels):
     table = pd.DataFrame(df[variables].describe().loc[['mean','50%','std'],:].T.to_numpy(),\
                 index = row_labels)
     ## Split the df
-    df_secls = df[df.ls_sec_tot > 0]
-    df_nonsecls = df[df.ls_nonsec_tot > 0]
+#    df_secls = df[df.ls_sec_tot > 0]
+#    df_nonsecls = df[df.ls_nonsec_tot > 0]
+    df_ls = df[df.ls_tot > 0]
     df_nonls = df[df.ls_tot == 0]
 
-    ## Securitized Loan Sellers
-    table = pd.concat([table, pd.DataFrame(df_secls[variables].describe().loc[['mean','50%','std'],:].T.to_numpy(),\
-                    index = row_labels)], axis = 1)
+#    ## Securitized Loan Sellers
+#    table = pd.concat([table, pd.DataFrame(df_secls[variables].describe().loc[['mean','50%','std'],:].T.to_numpy(),\
+#                    index = row_labels)], axis = 1)
+#    
+#    ## Non-securitized Loan Sellers
+#    table = pd.concat([table, pd.DataFrame(df_nonsecls[variables].describe().loc[['mean','50%','std'],:].T.to_numpy(),\
+#                    index = row_labels)], axis = 1)
+#    
+    ## Loan Selles
+    table = pd.concat([table, pd.DataFrame(df_ls[variables].describe().loc[['mean','50%','std'],:].T.to_numpy(),\
+                    index = row_labels) ], axis = 1)    
     
-    ## Non-securitized Loan Sellers
-    table = pd.concat([table, pd.DataFrame(df_nonsecls[variables].describe().loc[['mean','50%','std'],:].T.to_numpy(),\
-                    index = row_labels)], axis = 1)
-    
-    ## Non-securitizers
+    ## Non-Sellers
     table = pd.concat([table, pd.DataFrame(df_nonls[variables].describe().loc[['mean','50%','std'],:].T.to_numpy(),\
                     index = row_labels) ], axis = 1)
     
@@ -63,9 +68,14 @@ def makeTables(df,variables,row_labels,column_labels):
 
 #------------------------------------------
 # Set column_labels
+#list_multicolumns = [('Total Sample', 'Mean'), ('Total Sample', 'Median'), ('Total Sample', 'SD'),\
+#        ('Securitized Loan Sellers', 'Mean'), ('Securitized Loan Sellers', 'Median'), ('Securitized Loan Sellers', 'SD'),\
+#        ('Non-securitized Loan Sellers', 'Mean'), ('Non-securitized Loan Sellers', 'Median'),\
+#        ('Non-securitized Loan Sellers', 'SD'), ('Non-loan Sellers', 'Mean'), ('Non-loan Sellers', 'Median'),\
+#        ('Non-loan Sellers', 'SD')]
+
 list_multicolumns = [('Total Sample', 'Mean'), ('Total Sample', 'Median'), ('Total Sample', 'SD'),\
-        ('Securitized Loan Sellers', 'Mean'), ('Securitized Loan Sellers', 'Median'), ('Securitized Loan Sellers', 'SD'),\
-        ('Non-securitized Loan Sellers', 'Mean'), ('Non-securitized Loan Sellers', 'Median'), ('Non-securitized Loan Sellers', 'SD'),\
+        ('Loan Sellers', 'Mean'), ('Loan Sellers', 'Median'), ('Loan Sellers', 'SD'),\
         ('Non-loan Sellers', 'Mean'), ('Non-loan Sellers', 'Median'), ('Non-loan Sellers', 'SD')]
 
 #------------------------------------------
@@ -74,9 +84,9 @@ list_multicolumns = [('Total Sample', 'Mean'), ('Total Sample', 'Median'), ('Tot
 labels_balance = ['Ln Total Assets','Ln Total On- and off Balance Assets',\
                   'Liquidity Ratio','Trading Assets Ratio','Loan Ratio','Loan-to-Deposits',\
                   'Deposit Ratio','Share of Retail Deposits','Capital Ratio','Total Time Deposits',\
-                  'Wholesale Funding','Credit Derivatives Ratio','Loan Growth','Asset Growth']
+                  'Wholesale Funding','CDs Purchased Ratio','CDs Sold Ratio']
 vars_balance = ['size', 'tot_size', 'liqratio', 'traderatio', 'loanratio', 'ltdratio',\
-                'depratio', 'retaildep', 'eqratio', 'tot_time_dep_ta', 'wholesale','cdta', 'dloan', 'dass']
+                'depratio', 'retaildep', 'eqratio', 'tot_time_dep_ta', 'wholesale','cd_pur_ta','cd_sold_ta']
 
 ## Make table
 table_balance = makeTables(df,vars_balance,labels_balance,list_multicolumns)

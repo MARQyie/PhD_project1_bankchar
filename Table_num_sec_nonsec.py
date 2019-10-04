@@ -66,3 +66,12 @@ table_count.rename({-1:'Total Sample'}, axis = 'index', inplace = True)
 ## Save table
 table_count.to_excel('Table_ls.xlsx')
 table_count.to_latex('Table_ls_latex.tex')
+
+#----------------------------------------
+# Small checks for Credit Derivatives
+
+## Unique credit derivative users 
+df[(df.cd_pur + df.cd_sold) > 0].index.get_level_values(0).nunique() #78
+
+# Do these banks all sell loans?
+df[df.index.get_level_values(0).isin(df[(df.cd_pur + df.cd_sold) > 0].index.get_level_values(0).unique().tolist())].groupby(df[df.index.get_level_values(0).isin(df[(df.cd_pur + df.cd_sold) > 0].index.get_level_values(0).unique().tolist())].index.get_level_values(0)).sum(axis = 1).ls_tot # not all of these banks have loan sales
