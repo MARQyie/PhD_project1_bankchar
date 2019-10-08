@@ -73,6 +73,10 @@ df.drop('RIAD4230_x', axis = 1, inplace = True)
 df.rename(columns = {'RIAD4230_y':'RIAD4230'}, inplace = True)
 
 #------------------------------------------
+# Drop double RIAD4605
+df.drop('RIAD4605_x', axis = 1, inplace = True)
+df.rename(columns = {'RIAD4605_y':'RIAD4605'}, inplace = True)
+#------------------------------------------
 # Data selection
 '''Only select insured, commercial banks with a physical location in the 50 states
     of the US.'''
@@ -176,6 +180,12 @@ df['rwata'] = (df.RCG641 / df.RC2170).replace(np.inf, 0)
 df['coffratio'] = (df.RIAD4635 / df.RC2122).replace(np.inf, 0)
 df['coffratio_tot'] = (df[['RIADB747','RIADB748','RIADB749','RIADB750',\
   'RIADB751','RIADB752','RIADB753', 'RIAD4635']].sum(axis = 1) / df.RC2122).replace(np.inf, 0)
+
+df['net_coffratio'] = ((df.RIAD4635 + df.RIAD4605)/ df.RC2122).replace(np.inf, 0)
+df['net_coffratio_tot'] = ((df[['RIADB747','RIADB748','RIADB749','RIADB750',\
+  'RIADB751','RIADB752','RIADB753', 'RIAD4635']].sum(axis = 1) - \
+df[['RIADB754','RIADB755','RIADB756','RIADB757','RIADB758','RIADB759','RIADB760', 'RIAD4605']].\
+sum(axis = 1))/ df.RC2122).replace(np.inf, 0)
 
 ## Loan allowance ratio
 df['allowratio_on_on'] = (df.RIAD3123 / df.RC2122).replace(np.inf, 0)

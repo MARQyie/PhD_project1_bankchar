@@ -394,10 +394,13 @@ fig.savefig('Fig10b_cd.png')
 fig, ax = plt.subplots(figsize=(12, 8))
 plt.title('On-balance and Total Charge-offs')
 ax.set(xlabel='Year', ylabel = 'In $ Billion')
-ax.plot(df.RIAD4635.sum(level = [1,1]).droplevel(level = 0).divide(1e6), linestyle = '-',\
+ax.plot((df.RIAD4635.sum(level = [1,1]).droplevel(level = 0).divide(1e6) - \
+        df.RIAD4605.sum(level = [1,1]).droplevel(level = 0).divide(1e6)), linestyle = '-',\
         color = 'black', label = 'On-balance Charge-offs')
-ax.plot(df[['RIADB747','RIADB748','RIADB749','RIADB750','RIADB751','RIADB752','RIADB753','RIAD4635']].\
-        sum(axis = 1).sum(level = [1,1]).droplevel(level = 0).divide(1e6), linestyle = '-.',\
+ax.plot((df[['RIADB747','RIADB748','RIADB749','RIADB750','RIADB751','RIADB752','RIADB753','RIAD4635']].\
+        sum(axis = 1).sum(level = [1,1]).droplevel(level = 0).divide(1e6) -\
+        df[['RIADB754','RIADB755','RIADB756','RIADB757','RIADB758','RIADB759','RIADB760','RIAD4605']].\
+        sum(axis = 1).sum(level = [1,1]).droplevel(level = 0).divide(1e6)), linestyle = '-.',\
         color = 'black', label = 'Total Charge-offs')
 ax.grid(True)
 ax.legend()
@@ -405,6 +408,26 @@ fig.tight_layout()
 plt.show()
 
 fig.savefig('Fig11_charge_offs.png')
+
+# Net charge offs
+fig, ax = plt.subplots(figsize=(12, 8))
+plt.title('On-balance and Total Charge-offs')
+ax.set(xlabel='Year', ylabel = 'In $ Billion')
+ax.plot((df.RIAD4635.sum(level = [1,1]).droplevel(level = 0).divide(1e6) - \
+        df.RIAD4605.sum(level = [1,1]).droplevel(level = 0).divide(1e6)), linestyle = '-',\
+        color = 'black', label = 'On-balance Charge-offs')
+ax.plot((df[['RIADB747','RIADB748','RIADB749','RIADB750','RIADB751','RIADB752','RIADB753','RIAD4635']].\
+        sum(axis = 1).sum(level = [1,1]).droplevel(level = 0).divide(1e6) -\
+        df[['RIADB754','RIADB755','RIADB756','RIADB757','RIADB758','RIADB759','RIADB760','RIAD4605']].\
+        sum(axis = 1).sum(level = [1,1]).droplevel(level = 0).divide(1e6)), linestyle = '-.',\
+        color = 'black', label = 'Total Charge-offs')
+ax.grid(True)
+ax.legend()
+fig.tight_layout()
+plt.show()
+
+fig.savefig('Fig11_charge_offs.png')
+
 
 #-----------------------------------------------
 # Figure 12: Total loans + maximum exposure loan sales
