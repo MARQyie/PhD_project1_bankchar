@@ -111,6 +111,11 @@ df = df[(df.RC2170 >= 0) | (df.RC2122 >= 0)]
 
 #------------------------------------------
 # Make new variables
+## Ln loan sales
+df['ln_ls_sec_tot'] = df.ls_sec_tot.apply(lambda x: np.log(x) if x != 0.0 else 0.0)
+df['ln_ls_nonsec_tot'] = df.ls_nonsec_tot.apply(lambda x: np.log(x) if x != 0.0 else 0.0)
+df['ln_ls_tot'] = df.ls_tot.apply(lambda x: np.log(x) if x != 0.0 else 0.0)
+
 ## Bank size
 df['size'] = np.log(df.RC2170)
 
@@ -155,6 +160,10 @@ df['eqratio'] = (df.RC3210 / df.RC2170).replace(np.inf, 0)
 df['cd_pur_ta'] = (df.cd_pur / df.RC2170).replace(np.inf, 0)
 df['cd_sold_ta'] = (df.cd_sold / df.RC2170).replace(np.inf, 0)
 
+## LN credit derivatives
+df['ln_cd_pur'] = df.cd_pur.apply(lambda x: np.log(x) if x != 0.0 else 0.0)
+df['ln_cd_sold'] = df.cd_sold.apply(lambda x: np.log(x) if x != 0.0 else 0.0)
+
 ## Loan growth
 df['dloan'] = df.groupby('IDRSSD').RC2122.pct_change()
 
@@ -187,6 +196,11 @@ df['net_coffratio_tot'] = ((df[['RIADB747','RIADB748','RIADB749','RIADB750',\
 df[['RIADB754','RIADB755','RIADB756','RIADB757','RIADB758','RIADB759','RIADB760', 'RIAD4605']].\
 sum(axis = 1))/ df.RC2122).replace(np.inf, 0)
 
+df['net_coffratio_tot_ta'] = ((df[['RIADB747','RIADB748','RIADB749','RIADB750',\
+  'RIADB751','RIADB752','RIADB753', 'RIAD4635']].sum(axis = 1) - \
+df[['RIADB754','RIADB755','RIADB756','RIADB757','RIADB758','RIADB759','RIADB760', 'RIAD4605']].\
+sum(axis = 1))/ df.RC2170).replace(np.inf, 0)
+
 ## Loan allowance ratio
 df['allowratio_on_on'] = (df.RIAD3123 / df.RC2122).replace(np.inf, 0)
 df['allowratio_off_on'] = (df.RCONB557/ df.RC2122).replace(np.inf, 0)
@@ -201,6 +215,7 @@ df['allowratio_off_tot'] = (df.RCONB557/ (df.RC2122 + df.ls_tot)).replace(np.inf
 df['allowratio_tot_tot'] = ((df.RIAD3123 + df.RCONB557) / (df.RC2122 + df.ls_tot)).replace(np.inf, 0)
 
 df['tot_allowance'] = (df.RIAD3123 + df.RCONB557).replace(np.inf, 0)
+df['allowratio_tot_ta'] = ((df.RIAD3123 + df.RCONB557) / df.RC2170).replace(np.inf, 0)
 
 ## Credit exposure loan sales ratio
 df['lsseccredex_ratio'] = (df.ls_sec_credex / df.ls_sec_tot).replace(np.inf, 0)
