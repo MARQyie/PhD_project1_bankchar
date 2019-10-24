@@ -15,10 +15,12 @@ import os
 os.chdir(r'X:\My Documents\PhD\Materials_dissertation\2-Chapter_2-bank_char')
 
 from linearmodels import PanelOLS
+from linearmodels.panel import compare
+from linearmodels.iolib.summary2 import summary_col
 
 #------------------------------------------
 # Load df
-df = pd.read_csv('df_wp1_clean_macro.csv', index_col = 0)
+df = pd.read_csv('df_wp1_clean.csv', index_col = 0)
 
 # Make multi index
 df.date = pd.to_datetime(df.date.astype(str).str.strip() + '1230')
@@ -38,13 +40,12 @@ y_charge = df.net_coffratio_tot_ta
 y_allow = df.allowratio_tot_ta
 
 ## Independent variables
-x_charge = df[['constant','ln_ls_tot','net_coffratio_tot_ta_l1','ln_cd_pur','ln_cd_sold','size',\
-               'RC7205','loanratio','roa','depratio','comloanratio','doddfrank','gdp_growth','FEDFUNDS']]
-#x_charge = df[['constant','ln_ls_tot','net_coffratio_tot_ta_l1','ln_cd_pur','ln_cd_sold','size',\
-#               'RC7205','loanratio','roa','depratio','comloanratio']]
+x_charge = df[['constant','ls_tot_ta','net_coffratio_tot_ta_l1','cd_pur_ta','cd_sold_ta',\
+               'RC7205','loanratio','roa','depratio','comloanratio']]
 
-x_allow = df[['constant','ln_ls_tot','allowratio_tot_ta_l1','ln_cd_pur','ln_cd_sold','size',\
-               'RC7205','loanratio','roa','depratio','comloanratio','doddfrank','gdp_growth','FEDFUNDS']]
+
+x_allow = df[['constant','ls_tot_ta','allowratio_tot_ta_l1','cd_pur_ta','cd_sold_ta',\
+               'RC7205','loanratio','roa','depratio','comloanratio']]
 
 #-------------------------------------------
 # Analyses
@@ -53,15 +54,20 @@ model_pols_charge = PanelOLS(y_charge,x_charge)
 results_pols_charge = model_pols_charge.fit(cov_type = 'clustered', cluster_entity = True)
 print(results_pols_charge)
 
-model_fe_charge = PanelOLS(y_charge,x_charge,entity_effects = True)
+model_fe_charge = PanelOLS(y_charge,x_charge,entity_effects = True, time_effects = True)
 results_fe_charge = model_fe_charge.fit(cov_type = 'clustered', cluster_entity = True)
 print(results_fe_charge)
-print(results_fe_charge.summary.as_latex())
 
 model_pols_allow = PanelOLS(y_allow,x_allow)
 results_pols_allow = model_pols_allow.fit(cov_type = 'clustered', cluster_entity = True)
 print(results_pols_allow)
 
-model_fe_allow = PanelOLS(y_allow,x_allow,entity_effects = True)
+model_fe_allow = PanelOLS(y_allow,x_allow,entity_effects = True, time_effects = True)
 results_fe_allow = model_fe_allow.fit(cov_type = 'clustered', cluster_entity = True)
 print(results_fe_allow)
+
+# Output to latex
+summary_col([results_fe_charge,results_fe_allow], stars = True)
+
+
+print(compare({'FE - Charge-off Ratio':results_fe_charge,'FE - Allowance Ratio':results_fe_allow}, precision = 'std_errors').summary.as_latex())

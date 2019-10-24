@@ -26,10 +26,6 @@ import sys # to use the help functions needed
 sys.path.insert(1, r'X:\My Documents\PhD\Coding_docs\Help_functions')
 
 #------------------------------------------
-# Import help functions
-from Number_of_branches import numberOfBranches
-
-#------------------------------------------
 # Load df
 df = pd.read_csv('df_assetcomp_raw.csv', index_col = 0 )
 
@@ -115,6 +111,11 @@ df = df[(df.RC2170 >= 0) | (df.RC2122 >= 0)]
 df['ln_ls_sec_tot'] = df.ls_sec_tot.apply(lambda x: np.log(x) if x != 0.0 else 0.0)
 df['ln_ls_nonsec_tot'] = df.ls_nonsec_tot.apply(lambda x: np.log(x) if x != 0.0 else 0.0)
 df['ln_ls_tot'] = df.ls_tot.apply(lambda x: np.log(x) if x != 0.0 else 0.0)
+
+## Loan Sales to TA
+df['ls_sec_tot_ta'] = (df.ls_sec_tot / df.RC2170).replace(np.inf, 0)
+df['ls_nonsec_tot_ta'] = (df.ls_nonsec_tot / df.RC2170).replace(np.inf, 0)
+df['ls_tot_ta'] = (df.ls_tot / df.RC2170).replace(np.inf, 0)
 
 ## Bank size
 df['size'] = np.log(df.RC2170)
@@ -270,14 +271,42 @@ df['intexptrade'] = (df.RIAD4185 / df.RIAD4073).replace(np.inf, 0)
 ## Interest expenses on subordinated notes
 df['intexpsub'] = (df.RIAD4200 / df.RIAD4073).replace(np.inf, 0)
 
-## Number of branches
-df_branches = numberOfBranches(2001,2019)
+#-------------------------------------------------
+# Add Summary of Deposit data
+from lim_service_branch_total_branch import LimitedServiceBranches,\
+     statesActive, noBranchBank, readSODFiles, meanMedStdDistance
+
+## Number of limited service, full service and total branches
+df_branches = LimitedServiceBranches(2001,2019)
 df_branches.reset_index(inplace = True)
 
-df = df.merge(df_branches, on = ['IDRSSD', 'date'], how = 'left')
+'''FIX'''
+## Number of States Active
+df_states = statesActive(2001,2019)
+df_states = df_states.reset_index()
 
-### Drop banks that have no known number of branches
+## No Bank Branches
+df_nobranch = noBranchBank(2001,2019)
+df_nobranch = df_nobranch.reset_index()
+
+## Mean Distance Branch, Head quarters
+df_distance = meanMedStdDistance()
+df_distance = df_distance.reset_index()
+
+## Add the dfs to the dataframe
+df = df.merge(df_branches, on = ['IDRSSD', 'date'], how = 'left')
+df = df.merge(df_states, on = ['IDRSSD', 'date'], how = 'left')
+df = df.merge(df_nobranch, on = ['IDRSSD', 'date'], how = 'left')
+df = df.merge(df_distance, on = ['IDRSSD', 'date'], how = 'left')
+
+## Drop banks that have no known number of branches
 df.dropna(subset = ['num_branch'], inplace = True)
+
+## Drop all banks that have no branches
+''' NOTE: Some of the banks have a value of UNIT > 1. All these variables should be 0
+    Only remove the ones with a value of 1'''
+#df.UNIT.value_counts()
+df = df[df.UNIT != 1.0]
 
 #------------------------------------------
 # Limit balance sheet ratios ratios between 0,1 interval
@@ -307,14 +336,6 @@ sns.boxplot(df.rwata) # There are a handful outliers. No action yet
 ## Loan charge-off ratio 
 sns.boxplot(df.coffratio) # One mega outlier, take out
 df = df[df.coffratio != df.coffratio.max()]
-
-## Loan allowance ratio 
-# TODO
-#sns.boxplot(df.allowratio) # No weird obs, no action
-
-## Loan provision ratio
-sns.boxplot(df.provratio) # Some outliers, 4 impossibly negative, take out
-df = df[~df.provratio.isin(df.provratio.nsmallest(n = 4))]
 
 ## ROE
 '''This variable looks very disperse with many highly negative values.
@@ -387,5 +408,6 @@ df.rename(columns = {'Financial Institution Name':'name'}, inplace = True)
 
 #------------------------------------------
 ## Save df
+os.chdir(r'X:\My Documents\PhD\Materials_dissertation\2-Chapter_2-bank_char')
 df.to_csv('df_wp1_clean.csv')
 
