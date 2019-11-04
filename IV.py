@@ -289,13 +289,14 @@ table_mod3.to_excel('Correction_control_function.xlsx')
 ## Transform variables
 w_fd = w.groupby(df.index.get_level_values(0)).transform(lambda df: df.shift(periods = 1) - df).dropna()
 w_fd_alt = df.ls_tot.groupby(df.index.get_level_values(0)).transform(lambda df: df.shift(periods = 1) - df).dropna()
-x_fd = add_constant(df[['cd_pur_ta','cd_sold_ta',\
-               'RC7205','loanratio','roa','depratio','comloanratio']].groupby(df.index.get_level_values(0)).transform(lambda df: df.shift(periods = 1) - df).dropna())
+x_fd = df[['cd_pur_ta','cd_sold_ta',\
+               'RC7205','loanratio','roa','depratio','comloanratio']].groupby(df.index.get_level_values(0)).transform(lambda df: df.shift(periods = 1) - df).dropna()
 z_fd = z.groupby(df.index.get_level_values(0)).transform(lambda df: df.shift(periods = 1) - df).dropna()
 x_xbar_fd = x_xbar.groupby(df.index.get_level_values(0)).transform(lambda df: df.shift(periods = 1) - df).dropna()
 
 y_charge_fd = y_charge.groupby(df.index.get_level_values(0)).transform(lambda df: df.shift(periods = 1) - df).dropna()
-    
+y_allow_fd = y_allow.groupby(df.index.get_level_values(0)).transform(lambda df: df.shift(periods = 1) - df).dropna()
+        
 #----------------------------------------------
 # STEP 1: OLS, with clustered standard errors
 #----------------------------------------------
@@ -329,10 +330,164 @@ print(res4b_step2.summary)
 # Test instruments
 #----------------------------------------------
 # Test for endogeneity
-mod1a_endo = PanelOLS(y_charge,pd.concat([x,w,res1_step1.resid_generalized],axis = 1)).fit(cov_type = 'clustered', cluster_entity = True)
-print(mod1a_endo.summary) #p-value = 0.0001
+mod4a_endo = PanelOLS(y_charge_fd,pd.concat([x_fd,w_fd,res4_step1.resids],axis = 1)).fit(cov_type = 'clustered', cluster_entity = True)
+print(mod4a_endo.summary) #p-value = 0.0565
 
 # Test for overidentifying restrictions
 oir_mod4a = sargan(res4a_step2.resids, x_fd, z_fd)
 oir_mod4b = sargan(res4b_step2.resids, x_fd, z_fd)
+'''NOTE: Both tests are insignificant'''
 
+#----------------------------------------------
+#----------------------------------------------    
+# MODEL 5: FD IV, allowance rates
+#----------------------------------------------
+#----------------------------------------------
+
+#----------------------------------------------
+# STEP 2: OLS, with clustered standard errors
+#----------------------------------------------
+
+# setup the indepedent variables
+mod5a_step2 = PanelOLS(y_allow_fd,x_mod4a)
+res5a_step2 = mod5a_step2.fit(cov_type = 'clustered', cluster_entity = True)
+print(res5a_step2.summary)
+
+mod5b_step2 = PanelOLS(y_allow_fd,x_mod4b)
+res5b_step2 = mod5b_step2.fit(cov_type = 'clustered', cluster_entity = True)
+print(res5b_step2.summary)
+
+#----------------------------------------------
+# Test instruments
+#----------------------------------------------
+# Test for endogeneity
+mod5a_endo = PanelOLS(y_allow_fd,pd.concat([x_fd,w_fd,res4_step1.resids],axis = 1)).fit(cov_type = 'clustered', cluster_entity = True)
+print(mod5a_endo.summary) #p-value = 0.0002
+
+# Test for overidentifying restrictions
+oir_mod5a = sargan(res5a_step2.resids, x_fd, z_fd)
+oir_mod5b = sargan(res5b_step2.resids, x_fd, z_fd)
+'''NOTE: The first test is insignificant. 
+    The second test is significant on the 10% level'''
+    
+#----------------------------------------------
+#----------------------------------------------    
+# MODEL 6: FD IV, charge-off rates
+#----------------------------------------------
+#----------------------------------------------
+
+# Prelims
+## Get RSSDIDs for all loan sellers
+ids_ls = df[df.dum_ls == 1].index.get_level_values(0).tolist()
+
+## Subset the df
+df_ls = df[df.index.get_level_values(0).isin(ids_ls)]    
+
+  ## Set variables
+### Dummy LS
+w_ls_fd = df_ls.dum_ls.groupby(df_ls.index.get_level_values(0)).transform(lambda df: df.shift(periods = 1) - df).dropna()
+
+#### Dependent variables step 2
+y_charge_ls_fd = df_ls.net_coffratio_tot_ta.groupby(df_ls.index.get_level_values(0)).transform(lambda df: df.shift(periods = 1) - df).dropna()
+y_allow_ls_fd = df_ls.allowratio_tot_ta.groupby(df_ls.index.get_level_values(0)).transform(lambda df: df.shift(periods = 1) - df).dropna()
+
+### Independent exogenous variables
+x_ls_fd = df_ls[['cd_pur_ta','cd_sold_ta',\
+               'RC7205','loanratio','roa','depratio','comloanratio']].groupby(df_ls.index.get_level_values(0)).transform(lambda df: df.shift(periods = 1) - df).dropna()
+
+x_xbar_ls_fd = df_ls[['cd_pur_ta','cd_sold_ta','RC7205','loanratio','roa','depratio','comloanratio']].transform(lambda df: df - df.mean()).groupby(df_ls.index.get_level_values(0)).transform(lambda df: df.shift(periods = 1) - df).dropna()
+
+#### Change the columns of x_xbar
+dict_x_xbar = dict(zip(['cd_pur_ta','cd_sold_ta','RC7205','loanratio','roa','depratio','comloanratio'],\
+         [x + '_xbar' for x in ['cd_pur_ta','cd_sold_ta','RC7205','loanratio','roa','depratio','comloanratio']]))
+x_xbar_ls_fd.rename(columns = dict_x_xbar, inplace = True)
+
+### Instruments
+z_ls_fd = df_ls[['num_branch', 'perc_full_branch', 'STALPBR', 'distance']].groupby(df_ls.index.get_level_values(0)).transform(lambda df: df.shift(periods = 1) - df).dropna()
+        
+#----------------------------------------------
+# STEP 1: OLS, with clustered standard errors
+#----------------------------------------------
+
+# Estimate G_hat
+mod6_step1 = PanelOLS(w_ls_fd, pd.concat([x_ls_fd,z_ls_fd],axis = 1))
+res6_step1 = mod6_step1.fit(cov_type = 'clustered', cluster_entity = True)
+print(res6_step1.summary)
+G_hat_fd = res6_step1.fitted_values
+
+# Calculate G_hat_x_xbar
+G_hat_x_xbar_fd = x_xbar_ls_fd * G_hat_fd.values
+
+#----------------------------------------------
+# STEP 2: OLS, with clustered standard errors
+#----------------------------------------------
+
+# setup the indepedent variables
+x_mod6a = pd.concat([x_ls_fd,G_hat_fd],axis = 1)
+x_mod6b = pd.concat([x_ls_fd,G_hat_fd,G_hat_x_xbar_fd],axis = 1)
+
+mod6a_step2 = PanelOLS(y_charge_ls_fd,x_mod6a)
+res6a_step2 = mod6a_step2.fit(cov_type = 'clustered', cluster_entity = True)
+print(res6a_step2.summary)
+
+mod6b_step2 = PanelOLS(y_charge_ls_fd,x_mod6b)
+res6b_step2 = mod6b_step2.fit(cov_type = 'clustered', cluster_entity = True)
+print(res6b_step2.summary)
+
+#----------------------------------------------
+# Test instruments
+#----------------------------------------------
+# Test for endogeneity
+mod6a_endo = PanelOLS(y_charge_ls_fd,pd.concat([x_ls_fd,w_ls_fd,res6_step1.resids],axis = 1)).fit(cov_type = 'clustered', cluster_entity = True)
+print(mod6a_endo.summary) #p-value = 0.5477
+
+# Test for overidentifying restrictions
+oir_mod6a = sargan(res6a_step2.resids, x_ls_fd, z_ls_fd)
+oir_mod6b = sargan(res6b_step2.resids, x_ls_fd, z_ls_fd)
+'''NOTE: Both tests are insignificant'''
+
+#----------------------------------------------
+#----------------------------------------------    
+# MODEL 7: FD IV, Allow rates
+#----------------------------------------------
+#----------------------------------------------
+
+#----------------------------------------------
+# STEP 2: OLS, with clustered standard errors
+#----------------------------------------------
+
+mod7a_step2 = PanelOLS(y_allow_ls_fd,x_mod6a)
+res7a_step2 = mod7a_step2.fit(cov_type = 'clustered', cluster_entity = True)
+print(res7a_step2.summary)
+
+mod7b_step2 = PanelOLS(y_allow_ls_fd,x_mod6b)
+res7b_step2 = mod7b_step2.fit(cov_type = 'clustered', cluster_entity = True)
+print(res7b_step2.summary)
+
+#----------------------------------------------
+# Test instruments
+#----------------------------------------------
+# Test for endogeneity
+mod7a_endo = PanelOLS(y_allow_ls_fd,pd.concat([x_ls_fd,w_ls_fd,res6_step1.resids],axis = 1)).fit(cov_type = 'clustered', cluster_entity = True)
+print(mod7a_endo.summary) #p-value = 0.5477
+
+# Test for overidentifying restrictions
+oir_mod7a = sargan(res7a_step2.resids, x_ls_fd, z_ls_fd)
+oir_mod7b = sargan(res7b_step2.resids, x_ls_fd, z_ls_fd)
+'''NOTE: Both tests are insignificant'''
+
+#----------------------------------------------
+#----------------------------------------------    
+# Make a nice table for model 1 and 2
+#----------------------------------------------
+#----------------------------------------------
+# Make tables
+table_fd_step1 = summary_col([res4_step1, res6_step1], show = 'se', regressor_order = ['distance','num_branch','perc_full_branch','STALPBR'])
+table_fd_step2 = summary_col([res4a_step2, res6a_step2,res4b_step2, res6b_step2,\
+                              res5a_step2, res7a_step2,res5b_step2, res7b_step2],\
+                     show = 'se', regressor_order = ['fitted_values','cd_pur_ta','cd_sold_ta',\
+               'RC7205','loanratio','roa','depratio','comloanratio'])
+
+# Save to a single excel
+table_fd_step1.to_excel('FD_IV_restricted_sample_step1.xlsx')
+table_fd_step2.to_excel('FD_IV_restricted_sample_step2.xlsx')
