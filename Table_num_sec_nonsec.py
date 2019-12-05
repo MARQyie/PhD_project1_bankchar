@@ -53,18 +53,35 @@ table_count = pd.DataFrame([count_lssec,perc_lssec,count_lsnonsec,count_ls,\
                                     'No Loan Sales','Total']).T
 
 ## Make total row
-table_count.loc[-1] = np.array([df[df.ls_sec_tot > 0].index.get_level_values(0).nunique(), \
-    df[df.ls_sec_tot > 0].index.get_level_values(0).nunique() / df.index.get_level_values(0).nunique() * 100,\
-    df[df.ls_nonsec_tot > 0].index.get_level_values(0).nunique(),\
-    df[df.ls_tot > 0].index.get_level_values(0).nunique(),\
-    df[df.ls_tot > 0].index.get_level_values(0).nunique() / df.index.get_level_values(0).nunique() * 100,\
-    df[df.ls_tot == 0].index.get_level_values(0).nunique(),\
-    df.index.get_level_values(0).nunique()])
+### First sum all the columns:
+sum_col = table_count.sum(axis = 0).astype(int).tolist()
 
+### Recalculate item 1 and 4 
+sum_col[1] = sum_col[0] / sum_col[-1] * 100
+sum_col[4] = sum_col[3] / sum_col[-1] * 100
+
+## Add to the table
+table_count.loc[-1] = np.array(sum_col)
+
+### Rename the last row                            
 table_count.rename({-1:'Total Sample'}, axis = 'index', inplace = True)
 
+#----------------------------------------
+# Clean up the table
+## Round the numnber, % 2 decimals, ints 0 decimals
+table_count.iloc[:,[1,4]] = table_count.iloc[:,[1,4]].round(2)
+table_count.iloc[:,[0,2,3,5,6]] = table_count.iloc[:,[0,2,3,5,6]].astype(int)
+
+## Reset index
+table_count.reset_index(inplace = True)
+
+## Fix the date column
+table_count.iloc[:-1,0] = table_count.iloc[:-1,0].str[:4]
+table_count.rename(columns = {'date':''},inplace = True)
+
+#----------------------------------------
 ## Save table
-table_count.to_excel('Table_ls.xlsx')
+table_count.to_excel('Table_ls.xlsx', index = False)
 table_count.to_latex('Table_ls_latex.tex')
 
 #----------------------------------------

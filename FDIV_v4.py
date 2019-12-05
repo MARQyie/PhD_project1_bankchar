@@ -10,8 +10,6 @@ import numpy as np
 import os
 os.chdir(r'X:\My Documents\PhD\Materials_dissertation\2-Chapter_2-bank_char')
 
-import itertools
-
 # Import method for POLS 
 from linearmodels import PanelOLS
 
@@ -24,12 +22,6 @@ sys.path.insert(1, r'X:\My Documents\PhD\Coding_docs\Help_functions')
 
 # Import a method to make nice tables
 from summary3 import summary_col
-
-#--------------------------------------------
-# Set parameters 
-'''NOTE: log = False performs significantly worse than the log model. No need to 
-    toggle off the switch.'''
-log = True # If set to False the program estimates the model without logs and with size
 
 #--------------------------------------------
 ''' This script estimates the treatment effect of loan sales on credit risk
@@ -81,43 +73,30 @@ df.set_index(['IDRSSD','date'],inplace=True)
 
 
 ## Dummy variable for loan sales
-if log:
-    df['dum_ls'] = np.exp((df.ls_tot > 0) * 1) - 1 #will be taken the log of later
-else:
-    df['dum_ls'] = (df.ls_tot > 0) * 1    
+df['dum_ls'] = np.exp((df.ls_tot > 0) * 1) - 1 #will be taken the log of later
 
 ## Take a subset of variables (only the ones needed)
-vars_needed = ['distance','provratio','rwata','net_coffratio_tot_ta',\
+vars_needed = ['distance','provratio','net_coffratio_tot_ta',\
                'allowratio_tot_ta','ls_tot_ta','dum_ls','size',\
                'RC7205','loanratio','roa','depratio','comloanratio','RC2170',\
                'num_branch', 'bhc', 'RIAD4150', 'perc_limited_branch',\
-               'perc_full_branch', 'unique_states','UNIT']
+               'unique_states']
 df_full = df[vars_needed]
 
 #---------------------------------------------------
 # Setup the data
 
 ## Correct dummy and percentage variables for log
-if log:
-    df_full['bhc'] = np.exp(df_full.bhc) - 1
+df_full['bhc'] = np.exp(df_full.bhc) - 1
 
 ## Take logs of the df
-if log:
-    df_full = df_full.transform(lambda df: np.log(1 + df))
-else:
-    df_full[['distance','RIAD4150','num_branch']] = df_full[['distance','RIAD4150','num_branch']].transform(lambda df: np.log(1 + df))
+df_full = df_full.transform(lambda df: np.log(1 + df))
 
 ## Add the x_xbar to the df
-if log:
-    x_xbar = df_full[['RC7205','loanratio','roa',\
-                      'depratio','comloanratio','RC2170','bhc']].transform(lambda df: df - df.mean())
-    df_full[[x + '_xbar' for x in ['RC7205','loanratio',\
-                                   'roa','depratio','comloanratio','RC2170','bhc']]] = x_xbar
-else:
-    x_xbar = df_full[['RC7205','loanratio','roa',\
-                          'depratio','comloanratio','size','bhc']].transform(lambda df: df - df.mean())
-    df_full[[x + '_xbar' for x in ['RC7205','loanratio',\
-                                   'roa','depratio','comloanratio','size','bhc']]] = x_xbar
+x_xbar = df_full[['RC7205','loanratio','roa',\
+                  'depratio','comloanratio','RC2170','bhc']].transform(lambda df: df - df.mean())
+df_full[[x + '_xbar' for x in ['RC7205','loanratio',\
+                               'roa','depratio','comloanratio','RC2170','bhc']]] = x_xbar
 
 ## Take the first differences
 df_full_fd = df_full.groupby(df_full.index.get_level_values(0)).transform(lambda df: df.shift(periods = 1) - df).dropna()
@@ -139,7 +118,6 @@ df_full_fd[col_dummy] = dummy_full_fd
     Note that the Dodd-Frank act enactment year equals the year the post
     crisis sample starts
     '''
-
 df_pre_fd = df_full_fd[df_full_fd.index.get_level_values(1) <= pd.Timestamp(2006,12,31)]
 df_during_fd = df_full_fd[(df_full_fd.index.get_level_values(1) > pd.Timestamp(2006,12,31)) & (df_full_fd.index.get_level_values(1) < pd.Timestamp(2010,12,31))]
 df_post_fd = df_full_fd[df_full_fd.index.get_level_values(1) >= pd.Timestamp(2010,12,31)]
@@ -219,10 +197,6 @@ def analysesFDIV(df, var_ls, righthand_x, righthand_ghat, righthand_z, time_dumm
     ## Make a string of the time dummy vector
     time_dummies = ' + '.join(time_dummies)
     
-    ## Determine regression order
-    reg_order_step1 = vars_z + vars_x
-    reg_order_step2 = ['G_hat_fd'] + vars_x + righthand_ghat.split(' + ')
-    
     #----------------------------------------------    
     # First check the data on column rank
     ## If not full column rank return empty lists
@@ -248,8 +222,6 @@ def analysesFDIV(df, var_ls, righthand_x, righthand_ghat, righthand_z, time_dumm
     
     df['G_hat_fd'] = res_step1.fitted_values
     
-    sum_step1 = summary_col([res_step1], show = 'se', regressor_order = reg_order_step1)
-
     #----------------------------------------------
     # Calculate G_hat_x_xbar for both first stages
     G_hat_x_xbar_fd = df.loc[:,df.columns.str.contains('_xbar')] * df.G_hat_fd[:, None]
@@ -262,9 +234,6 @@ def analysesFDIV(df, var_ls, righthand_x, righthand_ghat, righthand_z, time_dumm
     ''' In the second stage we regress all dependent variables respectively on
         the fitted values of step 1 the x variables and the time dummies. In step
         2b we include a correction for unobserved heteroskedasticity.
-        
-        The summary of all the models in the second step is returned. The list
-        "res_step2" is used for the later calculation of tests.
         '''
         
     res_step2 = []
@@ -282,9 +251,6 @@ def analysesFDIV(df, var_ls, righthand_x, righthand_ghat, righthand_z, time_dumm
                      fit(cov_type = 'clustered', cluster_entity = True)
         res_step2.append(res_step2b) # append to results list
         
-    # Create the summary of the models
-    sum_step2 = summary_col(res_step2, show = 'se', regressor_order = reg_order_step2)
- 
     #----------------------------------------------
     # Tests
     '''We test for three things:
@@ -324,9 +290,9 @@ def analysesFDIV(df, var_ls, righthand_x, righthand_ghat, righthand_z, time_dumm
     
     if num_z == 1:
         if var_ls == 'dum_ls':
-            return(sum_step1,sum_step2,f_test_step1,pvals_ls_endo,[],0)
+            return(res_step1,res_step2,f_test_step1,pvals_ls_endo,[],0)
         else:
-            return(sum_step1,sum_step2,f_test_step1,pvals_ls_endo,[],1)
+            return(res_step1,res_step2,f_test_step1,pvals_ls_endo,[],1)
     else:
         sargan_res = []
         
@@ -336,9 +302,9 @@ def analysesFDIV(df, var_ls, righthand_x, righthand_ghat, righthand_z, time_dumm
             sargan_res.append(oir.pval)
         
         if var_ls == 'dum_ls':
-            return(sum_step1,sum_step2,f_test_step1,pvals_ls_endo,sargan_res,0)
+            return(res_step1,res_step2,f_test_step1,pvals_ls_endo,sargan_res,0)
         else:
-            return(sum_step1,sum_step2,f_test_step1,pvals_ls_endo,sargan_res,1)
+            return(res_step1,res_step2,f_test_step1,pvals_ls_endo,sargan_res,1)
 
 #----------------------------------------------
 def tableIVtests(num_models,f_test_step1,pvals_ls_endo,sargan_res = None):
@@ -351,10 +317,6 @@ def tableIVtests(num_models,f_test_step1,pvals_ls_endo,sargan_res = None):
     pvals_l_endo_list = [j for i in zip(pvals_ls_endo,pvals_ls_endo) for j in i]
     
     if sargan_res:
-        '''
-        indicator_tests = [a*b*c for a,b,c in zip([(i > 10) * 1 for i in f_test_list],\
-                          [(i < 0.05) * 1 for i in pvals_l_endo_list],\
-                          [(i > 0.05) * 1 for i in sargan_res])] '''
         indicator_tests = [a*b for a,b in zip([(i > 10) * 1 for i in f_test_list],\
                           [(i > 0.05) * 1 for i in sargan_res])]
         index = ['F-test weak instruments','P-val endogenous w','P-val Sargan','Indicator']
@@ -363,9 +325,6 @@ def tableIVtests(num_models,f_test_step1,pvals_ls_endo,sargan_res = None):
         return(pd.DataFrame([f_test_list,pvals_l_endo_list,sargan_res,indicator_tests],\
                              index = index, columns = columns))
     else:
-        '''
-        indicator_tests = [a*b for a,b in zip([(i < 0.05) * 1 for i in f_test_list],\
-                          [(i < 0.05) * 1 for i in pvals_l_endo_list])] '''
         indicator_tests = [a for a in [(i < 0.05) * 1 for i in f_test_list]]
         index = ['T-test weak instruments','P-val endogenous w','Indicator']
         columns = ['charge_2a','charge_2b','allow_2a','allow_2b','prov_2a','prov_2b',]
@@ -386,45 +345,12 @@ def scoreFDIVtest(test_table):
 #----------------------------------------------
 
 # Set the righthand side of the formulas used in analysesFDIV
-if log:
-    righthand_x = r'RC7205 + loanratio + roa + depratio + comloanratio + RC2170 + bhc'
-    righthand_ghat = r'RC7205_G_hat + loanratio_G_hat + roa_G_hat + depratio_G_hat + comloanratio_G_hat + RC2170_G_hat + bhc_G_hat'
-else:
-    righthand_x = r'RC7205 + loanratio + roa + depratio + comloanratio + size + bhc'
-    righthand_ghat = r'RC7205_G_hat + loanratio_G_hat + roa_G_hat + depratio_G_hat + comloanratio_G_hat + size_G_hat + bhc_G_hat'
+righthand_x = r'RC7205 + loanratio + roa + depratio + comloanratio + RC2170 + bhc'
+righthand_ghat = r'RC7205_G_hat + loanratio_G_hat + roa_G_hat + depratio_G_hat + comloanratio_G_hat + RC2170_G_hat + bhc_G_hat'
 
-'''NOTE: ls_tot_ta is best performing, so only use this one'''    
-#vars_endo = ['dum_ls','ls_tot_ta'] 
-vars_endo = ['ls_tot_ta'] 
+vars_endo = ['dum_ls','ls_tot_ta'] 
 
-# Calculate all possible combinations in vars_z
-'''OLD
-vars_z = ['num_branch','RIAD4150','perc_limited_branch','unique_states','distance']
-
-vars_z_comb = []
-for L in range(1, len(vars_z)+1):
-    for subset in itertools.combinations(vars_z, L):
-        vars_z_comb.append(' + '.join(list(subset)))
-
-z_remove = ['perc_limited_branch','distance','perc_limited_branch + unique_states',\
-            'perc_limited_branch + distance','perc_limited_branch + unique_states + distance',\
-            'num_branch + perc_limited_branch + unique_states + distance',\
-            'unique_states + distance','num_branch + RIAD4150 + unique_states',\
-            'num_branch + RIAD4150 + distance','num_branch + perc_limited_branch + unique_states',\
-            'num_branch + perc_limited_branch + distance','num_branch + unique_states + distance',\
-            'num_branch + RIAD4150 + perc_limited_branch + unique_states',\
-            'num_branch + RIAD4150 + perc_limited_branch + distance',\
-            'num_branch + RIAD4150 + perc_limited_branch + unique_states + distance',\
-            'unique_states','num_branch + RIAD4150', 'num_branch + perc_limited_branch',\
-            'num_branch + unique_states','num_branch + distance',\
-            'num_branch + RIAD4150 + perc_limited_branch',\
-            'num_branch + RIAD4150 + unique_states + distance',\
-            'RIAD4150 + perc_limited_branch + unique_states + distance','RIAD4150 + distance',\
-            'RIAD4150 + unique_states + distance']
-
-vars_z_comb = [x for x in vars_z_comb if x not in z_remove]   
-    '''
-vars_z_comb = ['RIAD4150 + perc_limited_branch']
+vars_z = ['RIAD4150 + perc_limited_branch'] # In list in case multiple instruments are needed to be run
 # Setup up th rest of the data for loops
 ## Note: To loop over the four dataframes, we put them in a list
 list_dfs = [df_full_fd, df_pre_fd, df_during_fd,df_post_fd, df_predodd_fd]
@@ -432,11 +358,6 @@ list_dfs = [df_full_fd, df_pre_fd, df_during_fd,df_post_fd, df_predodd_fd]
 #----------------------------------------------
 # Run models
 #----------------------------------------------
-''' Note: To get the results for all four dfs, two loan sale variables and all
-    combinations of instrumental variables, we use a triple loop and save the 
-    results to a list. 
-    '''
-
 # Setup the lists that stores the results from analysesFDIV
 res_step1 = []
 res_step2 = []
@@ -445,16 +366,18 @@ pvals_ls_endo = []
 sargan_res = []
 list_endo_vars = []
 
-for data in list_dfs:
-    # First set the time dummies (depends on the subset which ones to take)
-    time_dummies = ['dum{}'.format(year) for year in data.index.get_level_values(1).unique().astype(str).str[:4][1:].tolist()]
-    
-    for i in range(len(vars_endo)):
-        for z in vars_z_comb:
+for i in range(len(vars_endo)):
+    for data in list_dfs:
+        # First set the time dummies (depends on the subset which ones to take)
+        time_dummies = ['dum{}'.format(year) for year in data.index.get_level_values(1).unique().astype(str).str[:4][1:].tolist()]
+                     
+        # Run the model
+        for z in vars_z:
             res_step1_load,res_step2_load,f_test_step1_load,pvals_ls_endo_load,\
             sargan_res_load, endo_var_load =\
             analysesFDIV(data, vars_endo[i], righthand_x, righthand_ghat, z,  time_dummies)
-                
+            
+            # Save the models
             res_step1.append(res_step1_load)
             res_step2.append(res_step2_load)
             f_test_step1.append(f_test_step1_load)
@@ -463,7 +386,50 @@ for data in list_dfs:
             list_endo_vars.append(endo_var_load)
 
 #----------------------------------------------
-# Make test tables and scoring vector
+# Make nice tables
+#----------------------------------------------
+
+# Prelims
+def chunks(lst, n):
+    """Yield successive n-sized chunks from lst."""
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
+
+def split_list(a_list):
+    half = len(a_list)//2
+    return a_list[:half], a_list[half:]
+
+## Determine regression order
+reg_order_step1 = vars_z + righthand_x.split(' + ')
+reg_order_step2 = ['G_hat_fd'] + righthand_x.split(' + ') + righthand_ghat.split(' + ')
+
+#----------------------------------------------
+'''CHANGE IN CASE OF MULTIPLE OPTIONS FOR Z'''
+# Step 1
+res_step1_dumls, res_step1_lstotta = split_list(res_step1) 
+sum_step1_dumls = summary_col([res_step1_dumls], show = 'se', regressor_order = reg_order_step1)
+sum_step1_lstotta = summary_col([res_step1_lstotta], show = 'se', regressor_order = reg_order_step1)
+
+# Step 2
+# CHANGE NAMES ETC
+# THIS IS A SETUP, CHANGE TO MAKE EFFICIENT
+res_step2_dumls, res_step2_lstotta = split_list(res_step2) 
+
+tab1 = []
+tab2 = []
+tab3 = []
+tab4 = []
+tab5 = []
+tab6 = []
+
+for d in range(len(list_dfs)):
+    tab1.append(res_step2_dumls[d][0]) 
+    tab2.append(res_step2_dumls[d][1])
+
+sum_step2_dumls = summary_col([tab1], show = 'se', regressor_order = reg_order_step2)
+
+#----------------------------------------------
+# Make test tables 
 #----------------------------------------------
 ''' The test tables are later saved to an excel file together with the results
     of step 1 and 2. 
@@ -479,54 +445,13 @@ for f, endo, oir in zip(f_test_step1,pvals_ls_endo,sargan_res):
     test_table_load = tableIVtests(6,f,endo,oir)
     test_tables.append(test_table_load)
 
-scoring_vector = []
-
-for table in test_tables:
-    score = scoreFDIVtest(table)
-    scoring_vector.append(score)
-
-# Make a summary per instrument
-scoring_summary = []
-for i in range(len(vars_z_comb)):
-    j = list(range(0, len(scoring_vector), len(vars_z_comb)))
-    loc_z = [x + i for x in j]
-    
-    scores_z = [scoring_vector[k] for k in loc_z]
-    
-    scoring_summary.append(np.sum(scores_z) / len(scores_z))
-    
-# Make a summary per dependent variable
-scoring_variables = []
-for table in test_tables:
-    scoring_variables.append([np.sum(table.iloc[-1,i*len(vars_endo):i*len(vars_endo)+len(vars_endo)]) for i in range(3)])
-
-'''NOTE: Removed mistake from the calculation: changed the denominator'''
-scoring_variables_summary =  np.sum(scoring_variables, axis = 0) / (len(scoring_variables) * len(vars_endo))
-
-# Make a summary per df
-def chunks(lst, n):
-    """Yield successive n-sized chunks from lst."""
-    for i in range(0, len(lst), n):
-        yield lst[i:i + n]
-
-scoring_dfs = np.sum(list(chunks(scoring_vector, int(len(scoring_vector) / len(list_dfs)))), axis = 1)\
-            / (len(scoring_vector) / len(list_dfs))
-
-''' OLD
-# Make a summary per loan sales variable
-scoring_ls_part = list(chunks(scoring_vector, int(len(scoring_vector) / (len(list_dfs) * len(vars_endo)))))
-score_dumls = np.sum(scoring_ls_part[::2]) / (len(scoring_ls_part[::2]) * int(len(scoring_vector) / (len(list_dfs) * len(vars_endo))))
-score_lstotta = np.sum(scoring_ls_part[1::2]) / (len(scoring_ls_part[1::2]) * int(len(scoring_vector) / (len(list_dfs) * len(vars_endo))))
-
-scoring_ls = [score_dumls, score_lstotta]
-  '''  
 #----------------------------------------------
-# Save the tables and scoring vector
+# Save the tables a
 #----------------------------------------------
 # Make a vector containing names for the sheets
 
 names_dfs = ['Full_','Pre_','During_','Post_','PreDodd_']
-iter_z = ['{}'.format(i) for i in range(len(vars_z_comb))]
+names_depvar = ['coff','all','prov']
 names_dfs_endo = [(a + b) for a in names_dfs for b in vars_endo] 
 sheet_names = [(a + b) for a in names_dfs_endo for b in iter_z] 
 
@@ -584,10 +509,8 @@ list_drop = ['', '\t Results Summary', 'Model:', 'No. Observations:', 'R-squared
 
 #----------------------------------------------
 # Save step 1, step 2 and the test tables
-if log:
-    path = r'X:\My Documents\PhD\Materials_dissertation\2-Chapter_2-bank_char\FD_IV_v2_log.xlsx'
-else:
-    path = r'X:\My Documents\PhD\Materials_dissertation\2-Chapter_2-bank_char\FD_IV_v2.xlsx'
+
+path = r'X:\My Documents\PhD\Materials_dissertation\2-Chapter_2-bank_char\FD_IV_v3_log.xlsx'
 
 with pd.ExcelWriter(path) as writer:
     for i in range(len(res_step1)):
@@ -614,57 +537,3 @@ with pd.ExcelWriter(path) as writer:
         res_step1[i].to_excel(writer, sheet_name = sheet_names[i] + '_step1',rename_index = dict_names_step1)
         res_step2[i].to_excel(writer, sheet_name = sheet_names[i] + '_step2', rename_index = dict_names_step2)
         test_tables[i].to_excel(writer, sheet_name = sheet_names[i] + '_tests')
-
-#----------------------------------------------
-# Save the scoring vectors
-        
-## Save the scoring vector
-if log:
-    path_vec = 'scoring_vector_log.txt'
-else:
-    path_vec = 'scoring_vector.txt'
-    
-with open(path_vec, 'w') as filehandle:
-    for listitem in scoring_vector:
-        filehandle.write('{}\n'.format(listitem))
-
-## Save scoring summary
-if log:
-    path_sum = 'scoring_summary_log.txt'
-else:
-    path_sum = 'scoring_summary.txt'
-    
-with open(path_sum, 'w') as filehandle:
-    for name, score in zip(vars_z_comb,scoring_summary):
-        filehandle.write('{}: \t {}\n'.format(score, name))
-        
-## Save variable summary
-if log:
-    path_varsum = 'variable_summary_log.txt'
-else:
-    path_varsum = 'variable_summary.txt'
-    
-with open(path_varsum, 'w') as filehandle:
-    for name, score in zip(['net_coffratio_tot_ta','allowratio_tot_ta','provratio'],scoring_variables_summary):
-        filehandle.write('{}: \t {}\n'.format(score, name))
-
-## Save scoring dfs
-if log:
-    path_dfs = 'scoring_dfs_log.txt'
-else:
-    path_dfs = 'scoring_dfs.txt'
-    
-with open(path_dfs, 'w') as filehandle:
-    for name, score in zip(['Full','Pre-crisis','Crisis','Post-crisis','Pre-Dodd-Frank'],scoring_dfs):
-        filehandle.write('{}: \t {}\n'.format(score, name))
-'''OLD
-## Save scoring ls
-if log:
-    path_ls = 'scoring_ls_log.txt'
-else:
-    path_ls = 'scoring_ls.txt'
-    
-with open(path_ls, 'w') as filehandle:
-    for name, score in zip(vars_endo,scoring_ls):
-        filehandle.write('{}: \t {}\n'.format(score, name))
-'''

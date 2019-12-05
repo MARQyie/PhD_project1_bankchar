@@ -105,24 +105,16 @@ labels_call = ['Total Assets (\$ bln)','Total Assets (On + Off; \$ bln)', 'Total
                'Regulatory Capital Ratio', 'Loans-to-TA','Return on Assets',\
                'Net Interest Margin','Deposit Ratio','Commercial Loan Ratio','BHC Indicator','Number of Employees']
 
-## Make table
-table_call = makeTables(df,vars_call,labels_call,list_multicolumns)
-
-## Save to Excel
-table_call.to_excel('Table_1_call_report_lsnols.xlsx')
-
-#------------------------------------------
-# Table 2: Summary of Deposits
-## Set labels and variables
 vars_sod = ['num_branch','distance','perc_limited_branch','perc_full_branch','unique_states','UNIT']
 labels_sod = ['Number of Branches','Maximum Distance Between Branches','Percentage Limited Service',\
               'Percentage Full Service','Number of States Active', 'Unit Indicator']
 
 ## Make table
-table_sod = makeTables(df,vars_sod,labels_sod,list_multicolumns)
+table_full = makeTables(df,vars_call + vars_sod,labels_call + labels_sod,list_multicolumns)
 
 ## Save to Excel
-table_sod.to_excel('Table_1_summary_of_deposits_lsnols.xlsx')
+table_full.to_excel('Summary_statistics_full_sample.xlsx',float_format="%.4f")
+table_full.to_latex('Summary_statistics_full_sample.tex',float_format="%.4f")
 
 #------------------------------------------
 #------------------------------------------
@@ -137,9 +129,9 @@ def makeTablesSubsets(df,variables,row_labels,column_labels,subset = 'size'):
     
     if subset == 'size':
         # Split the df in subsets 
-        ids_small = df[(df.index.get_level_values(1) == pd.Timestamp(2018,12,30)) & (df.RC2170 < 3e5)].index.get_level_values(0).unique().tolist()
-        ids_medium = df[(df.index.get_level_values(1) == pd.Timestamp(2018,12,30)) & (df.RC2170.between(3e5,1e6))].index.get_level_values(0).unique().tolist()
-        ids_large = df[(df.index.get_level_values(1) == pd.Timestamp(2018,12,30)) & (df.RC2170 > 1e6)].index.get_level_values(0).unique().tolist()
+        ids_small = df[(df.index.get_level_values(1) == pd.Timestamp(2018,12,31)) & (df.RC2170 < 3e5)].index.get_level_values(0).unique().tolist()
+        ids_medium = df[(df.index.get_level_values(1) == pd.Timestamp(2018,12,31)) & (df.RC2170.between(3e5,1e6))].index.get_level_values(0).unique().tolist()
+        ids_large = df[(df.index.get_level_values(1) == pd.Timestamp(2018,12,31)) & (df.RC2170 > 1e6)].index.get_level_values(0).unique().tolist()
         
         df_small = df[df.index.get_level_values(0).isin(ids_small)]
         df_med = df[df.index.get_level_values(0).isin(ids_medium)]
@@ -159,9 +151,9 @@ def makeTablesSubsets(df,variables,row_labels,column_labels,subset = 'size'):
         
     elif subset == 'crisis':
         # Split the df
-        df_pre = df[df.index.get_level_values(1) <= pd.Timestamp(2006,12,30)]
-        df_during = df[(df.index.get_level_values(1) > pd.Timestamp(2006,12,30)) & (df.index.get_level_values(1) < pd.Timestamp(2010,12,30))]
-        df_post = df[df.index.get_level_values(1) >= pd.Timestamp(2010,12,30)]
+        df_pre = df[df.index.get_level_values(1) <= pd.Timestamp(2006,12,31)]
+        df_during = df[(df.index.get_level_values(1) > pd.Timestamp(2006,12,31)) & (df.index.get_level_values(1) < pd.Timestamp(2010,12,30))]
+        df_post = df[df.index.get_level_values(1) >= pd.Timestamp(2010,12,31)]
         
         # Pre
         table = pd.DataFrame(df_pre[variables].describe().loc[['mean','std'],:].T.to_numpy(),\
@@ -175,8 +167,8 @@ def makeTablesSubsets(df,variables,row_labels,column_labels,subset = 'size'):
         table = pd.concat([table, pd.DataFrame(df_post[variables].describe().loc[['mean','std'],:].T.to_numpy(),\
                     index = row_labels) ], axis = 1)   
     elif subset == 'dodd':
-        df_pre = df[df.index.get_level_values(1) <= pd.Timestamp(2009,12,30)]
-        df_post = df[df.index.get_level_values(1) > pd.Timestamp(2009,12,30)]
+        df_pre = df[df.index.get_level_values(1) <= pd.Timestamp(2009,12,31)]
+        df_post = df[df.index.get_level_values(1) > pd.Timestamp(2009,12,31)]
         
         # Pre
         table = pd.DataFrame(df_pre[variables].describe().loc[['mean','std'],:].T.to_numpy(),\
@@ -239,7 +231,12 @@ table_crisis = makeTablesSubsets(df,vars_sub,labels_sub,list_multicolumns_crisis
 table_dodd = makeTablesSubsets(df,vars_sub,labels_sub,list_multicolumns_dodd,'dodd')
 
 ## To Excel
-with pd.ExcelWriter('Table_1b_summary_statistics_subsets.xlsx') as writer:
-    table_size.to_excel(writer, sheet_name = 'Size')
-    table_crisis.to_excel(writer, sheet_name = 'Crisis')
-    table_dodd.to_excel(writer, sheet_name = 'Dodd-Frank')
+with pd.ExcelWriter('Summary_statistics_subsets.xlsx') as writer:
+    table_size.to_excel(writer, sheet_name = 'Size',float_format="%.4f")
+    table_crisis.to_excel(writer, sheet_name = 'Crisis',float_format="%.4f")
+    table_dodd.to_excel(writer, sheet_name = 'Dodd-Frank',float_format="%.4f")
+    
+## To Latex
+table_size.to_latex('Summary_statistics_size_sample.tex',float_format="%.4f")
+table_crisis.to_latex('Summary_statistics_crisis_sample.tex',float_format="%.4f")
+table_dodd.to_latex('Summary_statistics_dodd_sample.tex',float_format="%.4f")

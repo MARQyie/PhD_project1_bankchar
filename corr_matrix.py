@@ -11,7 +11,7 @@ import numpy as np
 import scipy as sp
 import matplotlib.pyplot as plt
 import seaborn as sns
-sns.set(style = 'whitegrid')
+sns.set(style = 'whitegrid',font_scale=1.2)
 
 import os
 os.chdir(r'X:\My Documents\PhD\Materials_dissertation\2-Chapter_2-bank_char')
@@ -27,136 +27,122 @@ from summary3 import summary_col
 # Import method that adds a constant to a df
 from statsmodels.tools.tools import add_constant
 
-# Set parameters 
-change_ls = False # If set to False the program will run a different subset and append it to the excel
 
-#------------------------------------------
+#---------------------------------------------- 
+#----------------------------------------------
+# Prelims
+#----------------------------------------------
+#----------------------------------------------
+
+#----------------------------------------------
+# Load data and add needed variables
+
 # Load df
 df = pd.read_csv('df_wp1_clean.csv', index_col = 0)
 
-# Make multi index
-df.date = pd.to_datetime(df.date.astype(str).str.strip())
+## Make multi index
+df.date = pd.to_datetime(df.date.astype(str))
 df.set_index(['IDRSSD','date'],inplace=True)
 
-# Drop missings on distance
-df.dropna(subset = ['distance'], inplace = True)
 
-# Dummy variable for loan sales
-df['dum_ls'] = np.exp((df.ls_tot > 0) * 1) - 1
+## Dummy variable for loan sales
+df['dum_ls'] = np.exp((df.ls_tot > 0) * 1) - 1 #will be taken the log of later 
 
-# Subset the df
-if change_ls:
-    intersect = np.intersect1d(df[df.ls_tot_ta > 0].index.\
-                               get_level_values(0).unique(),\
-                               df[df.ls_tot_ta == 0].index.\
-                               get_level_values(0).unique())
-    df_ls = df[df.index.get_level_values(0).isin(intersect)]
-else:
-    ## Kick out the community banks (based on Stiroh, 2004)  
-    ids_comm = df[((df.index.get_level_values(1) == pd.Timestamp(2018,12,30)) &\
-                     (df.RC2170 < 3e5) & (df.bhc == 0))].index.get_level_values(0).unique().tolist() 
-    ids_tot = df.index.get_level_values(0).unique().tolist()
-    ids_sub = [x for x in ids_tot if x not in ids_comm]
-    df_ls = df[df.index.get_level_values(0).isin(ids_sub)]   
-  
+## Take a subset of variables (only the ones needed)
+vars_needed = ['distance','provratio','net_coffratio_tot_ta',\
+               'allowratio_tot_ta','ls_tot_ta','dum_ls',\
+               'RC7205','loanratio','roa','depratio','comloanratio','RC2170',\
+               'num_branch', 'bhc', 'RIAD4150', 'perc_limited_branch',\
+               'unique_states']
+df_full = df[vars_needed]
 
-## Take logs
-df = df.select_dtypes(include = ['float64','int','int64']).transform(lambda df: np.log(1 + df)).replace([np.inf, -np.inf], 0)
-df_ls = df_ls.select_dtypes(include = ['float64','int','int64']).transform(lambda df: np.log(1 + df)).replace([np.inf, -np.inf], 0)
+#---------------------------------------------------
+# Setup the data
 
-## Drop NaNs on subset
-df.dropna(subset = ['rwata','net_coffratio_tot_ta','allowratio_tot_ta','ls_tot_ta','cd_pur_ta','cd_sold_ta',\
-               'RC7205','loanratio','roa','depratio','comloanratio','RC2170'], inplace = True)
-df_ls.dropna(subset = ['rwata','net_coffratio_tot_ta','allowratio_tot_ta','ls_tot_ta','cd_pur_ta','cd_sold_ta',\
-               'RC7205','loanratio','roa','depratio','comloanratio','RC2170'], inplace = True)
+## Correct dummy and percentage variables for log
+df_full['bhc'] = np.exp(df_full.bhc) - 1
+
+## Take logs of the df
+df_full = df_full.transform(lambda df: np.log(1 + df))
+
+## Take the first differences
+df_full_fd = df_full.groupby(df_full.index.get_level_values(0)).transform(lambda df: df.shift(periods = 1) - df).dropna()
+
+# Subset the df take the crisis subsets
+df_pre_fd = df_full_fd[df_full_fd.index.get_level_values(1) <= pd.Timestamp(2006,12,31)]
+df_during_fd = df_full_fd[(df_full_fd.index.get_level_values(1) > pd.Timestamp(2006,12,31)) & (df_full_fd.index.get_level_values(1) < pd.Timestamp(2010,12,31))]
+df_post_fd = df_full_fd[df_full_fd.index.get_level_values(1) >= pd.Timestamp(2010,12,31)]
+df_predodd_fd = df_full_fd[df_full_fd.index.get_level_values(1) < pd.Timestamp(2010,12,31)]
 
 #------------------------------------------------
 # Create the first difference df
 ## First select the variables
-vars_list = ['rwata','net_coffratio_tot_ta','allowratio_tot_ta','provratio','ls_tot_ta',\
-             'dum_ls','RC7205','loanratio','roa','nim','depratio','comloanratio','RC2170',\
-             'num_branch', 'bhc', 'RIAD4150', 'distance', 'perc_limited_branch','perc_full_branch',\
-             'unique_states','UNIT']
-labels = ['RWATA', 'Charge-offs-to-TA','Allowances-to-TA', 'Provision Ratio', 'Loan-Sales-to-TA',\
-          'Dummy Loan Sales','Regulatory Capital Ratio', 'Loans-to-TA','Return on Assets',\
-          'Net Interest Margin','Deposit Ratio','Commercial Loan Ratio','Total Assets',\
-          'Number of Branches', 'BHC Indicator', 'Number of Employees', 'Max. Distance Branches',\
-          'Limited Branches (in %)','Full Branches (in %)','Number of States Active','Unit Indicator']
+## Make dict that contains all variables and names
+dict_var_names = {'distance':'Max Distance Branches',
+                 'provratio':'Loan Loss Provisions',
+                 'rwata':'RWA/TA',
+                 'net_coffratio_tot_ta':'Loan Charge-offs',
+                 'allowratio_tot_ta':'Loan Loss Allowances',
+                 'ls_tot_ta':'Loan Sales/TA',
+                 'dum_ls':'Dummy Loan Sales',
+                 'size':'Log(TA)',
+                 'RC7205':'Regulatory Capital Ratio',
+                 'loanratio':'Loan Ratio',
+                 'roa':'ROA',
+                 'depratio':'Deposit Ratio',
+                 'comloanratio':'Commercial Loan Ratio',
+                 'RC2170':'Total Assets',
+                 'num_branch':'Num Branches',
+                 'bhc':'BHC Indicator',
+                 'RIAD4150':'Num Employees',
+                 'perc_limited_branch':'Limited Branches (in %)',
+                 'perc_full_branch':'Full Branches (in %)',
+                 'unique_states':'Num States Active',
+                 'UNIT':'Unit Bank Indicator'}
 
-## Transform the data
-df_fd = df[vars_list].groupby(df.index.get_level_values(0)).transform(lambda df: df.shift(periods = 1) - df).dropna()
-df_ls_fd = df_ls[vars_list].groupby(df_ls.index.get_level_values(0)).transform(lambda df: df.shift(periods = 1) - df).dropna()
+labels = [dict_var_names[var] for var in vars_needed]
 
 #-------------------------------------------------
 # Correlation Matrices
-corr_matrix_full = df_fd.corr(method = 'spearman')
-corr_matrix_subset = df_ls_fd.corr(method = 'spearman')
+corr_matrix_full = df_full_fd.corr(method = 'spearman')
+corr_matrix_precrisis = df_pre_fd.corr(method = 'spearman')
+corr_matrix_crisis = df_during_fd.corr(method = 'spearman')
+corr_matrix_postcrisis = df_post_fd.corr(method = 'spearman')
+corr_matrix_predodd = df_predodd_fd.corr(method = 'spearman')
 
 # Plot
-## Full sample
-fig, ax = plt.subplots(figsize=(20, 16))
-plt.title('Correlation Matrix Full Sample', fontsize=20)
-ax = sns.heatmap(
-    corr_matrix_full, 
-    vmin=-1, vmax=1, center=0,
-    cmap=sns.diverging_palette(20, 220, n=200),
-    annot = True
-)
-ax.set_xticklabels(
-    labels,
-    rotation=45,
-    horizontalalignment='right'
-)
-ax.set_yticklabels(
-    labels,
-);
-        
-fig.savefig('Corr_matrix_1_full_sample.png')     
+## Setup everything for loop
+corr_matrices = [corr_matrix_full,corr_matrix_precrisis,corr_matrix_crisis,\
+                 corr_matrix_postcrisis,corr_matrix_predodd]
+titles = ['Correlation Matrix Full Sample','Correlation Matrix Pre-Crisis Sample',\
+          'Correlation Matrix Crisis Sample','Correlation Matrix Post-Crisis/Dodd-Frank Sample',\
+          'Correlation Matrix Pre-Dodd-Frank Sample']
+paths = ['Corr_matrix_full_sample.png','Corr_matrix_precrisis_sample.png',\
+         'Corr_matrix_crisis_sample.png','Corr_matrix_postcrisis_sample.png',\
+         'Corr_matrix_predodd_sample.png']
 
-plt.close(fig)
+## Loop over all plots
+for matrix, title, path in zip(corr_matrices, titles, paths):
+    fig, ax = plt.subplots(figsize=(20, 16))
+    plt.title(title, fontsize=20)
+    ax = sns.heatmap(
+        matrix, 
+        vmin=-1, vmax=1, center=0,
+        cmap=sns.diverging_palette(20, 220, n=200),
+        annot = True
+    )
+    ax.set_xticklabels(
+        labels,
+        rotation=45,
+        horizontalalignment='right'
+    )
+    ax.set_yticklabels(
+        labels,
+    );
+            
+    fig.savefig(path)     
+    
+    plt.close(fig)
+    plt.clf()
 
-## Subset
-fig, ax = plt.subplots(figsize=(20, 16))
-if change_ls:
-    plt.title('Correlation Matrix Change in Loan Sales', fontsize=20)
-else:
-    plt.title('Correlation Matrix No Community Banks', fontsize=20)
-ax = sns.heatmap(
-    corr_matrix_subset, 
-    vmin=-1, vmax=1, center=0,
-    cmap=sns.diverging_palette(20, 220, n=200),
-    annot=True
-)
-ax.set_xticklabels(
-    labels,
-    rotation=45,
-    horizontalalignment='right'
-)
-ax.set_yticklabels(
-    labels,
-);
-
-if change_ls:
-    fig.savefig('Corr_matrix_2a_change_ls.png')  
-else:
-    fig.savefig('Corr_matrix_2b_no_comm_banks.png')  
-
-plt.close(fig)
-  
-## Not FD
-corr_matrix_full_nofd = df[vars_list].corr(method = 'spearman')
-corr_matrix_subset_nofd = df_ls[vars_list].corr(method = 'spearman')
-        
-ax = sns.heatmap(
-    corr_matrix_full_nofd, 
-    vmin=-1, vmax=1, center=0,
-    cmap=sns.diverging_palette(20, 220, n=200),
-    square=True
-)
-ax.set_xticklabels(
-    ax.get_xticklabels(),
-    rotation=45,
-    horizontalalignment='right'
-);
-     
         
