@@ -31,7 +31,7 @@ from scipy import stats
 df = pd.read_csv('df_wp1_clean.csv', index_col = 0)
 
 # Make multi index
-df.date = pd.to_datetime(df.date.astype(str).str.strip() + '1230')
+df.date = pd.to_datetime(df.date.astype(str).str.strip())
 df.set_index(['IDRSSD','date'],inplace=True)
 
 #------------------------------------------

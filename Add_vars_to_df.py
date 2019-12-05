@@ -1,10 +1,11 @@
 #------------------------------------------
-# Clean dataset US Call reports
+# Add new variables dataset US Call reports
 # Mark van der Plaat
 # Sep 2019 
 
 ''' 
-    This document cleans the the dataset for further analyses for working paper #1
+    This document partially cleans the the dataset and add variables 
+    for further analyses for working paper #1
 
     Data used: US Call reports 2001-2018 year-end
     Only insured, commercial banks are taken
@@ -308,106 +309,6 @@ df = df.merge(df_distance, on = ['IDRSSD', 'date'], how = 'left')
 ## Drop banks that have no known number of branches
 df.dropna(subset = ['num_branch'], inplace = True)
 
-## Drop all banks that have no branches
-''' NOTE: Some of the banks have a value of UNIT > 1. All these variables should be 0
-    Only remove the ones with a value of 1'''
-#df.UNIT.value_counts()
-#df = df[df.UNIT != 1.0]
-
-#------------------------------------------
-# Limit balance sheet ratios ratios between 0,1 interval
-vars_limit = ['liqratio','traderatio','loanratio','retaildep','eqratio','comloanratio',\
-              'agriloanratio']
-
-for i in vars_limit:
-    df = df[df['{}'.format(i)].between(0,1,inclusive = True)]
-
-#------------------------------------------
-# Take out the infinite values
-df = df.replace([np.inf, -np.inf], np.nan)
-    
-#------------------------------------------
-# Check outliers
-# Residential non-securitized loan sales
-sns.boxplot(df.RCB790) # one huge one, take out
-df = df[df.RCB790 != df.RCB790.max()]
- 
-## Loan-to-deposit ratio
-sns.boxplot(df.ltdratio) # quite some
-df = df[df.ltdratio < df.ltdratio.quantile(q = 0.999)]
-
-## RWATA
-sns.boxplot(df.rwata) # There are a handful outliers. No action yet
-
-## Loan charge-off ratio 
-sns.boxplot(df.coffratio) # One mega outlier, take out
-df = df[df.coffratio != df.coffratio.max()]
-
-## ROE
-'''This variable looks very disperse with many highly negative values.
-    Might not be suitable for an analysis.'''
-sns.boxplot(df.roe) # Three huge negative values, take out
-#df = df[~df.roe.isin(df.roe.nsmallest(n = 3))]
-
-## ROA 
-sns.boxplot(df.roa) # No weird obs
-
-## Net interest margin
-sns.boxplot(df.nim) # No weird obs
-
-## Cost-to-income margin
-sns.boxplot(df.costinc) # Looks non-standard, no action
-
-## Non-interest income to operating income
-sns.boxplot(df.nonincoperinc) # Looks non-standard, no action
-
-## Loan interest income
-sns.boxplot(df.intincloan) # No action
-
-## Interest income of other deposit institutions
-sns.boxplot(df.intincdepins) # No action
-
-## Interest income of securities
-sns.boxplot(df.intincsec) # No action
-
-## Interest income of trading assets
-sns.boxplot(df.intinctrade) # No action
-
-## Interest income of REPO
-sns.boxplot(df.intincrepo) # No action
-
-## Other interest income
-sns.boxplot(df.intincoth) # No action
-
-## Interest expenses on REPOs
-sns.boxplot(df.intexprepo) # No action
-
-## Interest expenses on trading liabilities
-sns.boxplot(df.intexptrade) # Two huge outliers, take out
-df = df[df.intexptrade != df.intexptrade.max()]
-df = df[df.intexptrade != df.intexptrade.min()]
-
-## Interest expenses on subordinated notes
-sns.boxplot(df.intexpsub) # No action
-
-## Number of branches
-sns.boxplot(df.num_branch) # No action
-
-## Regulatory Capital Ratios
-'''Kicks out many obervations with values at sec_tot'''
-sns.boxplot(df.RC7205) # many large outliers
-df = df[df.RC7205 < df.RC7205.quantile(q = 0.999)]
-
-sns.boxplot(df.RC7206) # No action
-
-## Credit Derivatives
-sns.boxplot(df.cd_net) # 2 outliers, take out
-df = df[~df.cd_net.isin(df.cd_net.nlargest(n = 2))]
-
-#------------------------------------------
-# Check obs per years
-year_obs = df.date.value_counts()
-
 #------------------------------------------
 # Change the name column name
 df.rename(columns = {'Financial Institution Name':'name'}, inplace = True)
@@ -415,5 +316,5 @@ df.rename(columns = {'Financial Institution Name':'name'}, inplace = True)
 #------------------------------------------
 ## Save df
 os.chdir(r'X:\My Documents\PhD\Materials_dissertation\2-Chapter_2-bank_char')
-df.to_csv('df_wp1_clean.csv')
+df.to_csv('df_wp1_newvars.csv')
 
