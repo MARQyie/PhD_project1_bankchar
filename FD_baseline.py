@@ -48,7 +48,7 @@ vars_needed = ['distance','provratio','rwata','net_coffratio_tot_ta',\
                'allowratio_tot_ta','ls_tot_ta','dum_ls','size',\
                'RC7205','loanratio','roa','depratio','comloanratio','RC2170',\
                'num_branch', 'bhc', 'RIAD4150', 'perc_limited_branch',\
-               'perc_full_branch', 'unique_states','UNIT']
+               'perc_full_branch', 'unique_states','UNIT','nim']
 df_full = df[vars_needed]
 
 #---------------------------------------------------
@@ -61,18 +61,6 @@ if log:
 ## Take logs of the df
 if log:
     df_full = df_full.transform(lambda df: np.log(1 + df)).replace([np.inf, -np.inf], 0)
-
-## Add the x_xbar to the df
-if log:
-    x_xbar = df_full[['RC7205','loanratio','roa',\
-                      'depratio','comloanratio','RC2170','bhc']].transform(lambda df: df - df.mean())
-    df_full[[x + '_xbar' for x in ['RC7205','loanratio',\
-                                   'roa','depratio','comloanratio','RC2170','bhc']]] = x_xbar
-else:
-    x_xbar = df_full[['RC7205','loanratio','roa',\
-                          'depratio','comloanratio','size','bhc']].transform(lambda df: df - df.mean())
-    df_full[[x + '_xbar' for x in ['RC7205','loanratio',\
-                                   'roa','depratio','comloanratio','size','bhc']]] = x_xbar
 
 ## Take the first differences
 df_full_fd = df_full.groupby(df_full.index.get_level_values(0)).transform(lambda df: df.shift(periods = 1) - df).dropna()
@@ -186,9 +174,9 @@ def analysesFD(df, var_ls, righthand_x, time_dummies):
 
 # Set the righthand side of the formulas
 if log:
-    righthand_x = r'RC7205 + loanratio + roa + depratio + comloanratio + RC2170'
+    righthand_x = r'RC7205 + loanratio + nim + depratio + comloanratio + RC2170 + bhc'
 else:
-    righthand_x = r'RC7205 + loanratio + roa + depratio + comloanratio + size'
+    righthand_x = r'RC7205 + loanratio + nim + depratio + comloanratio + size + bhc'
 
 time_dummies = ' + '.join(col_dummy[1:])
    
@@ -274,6 +262,7 @@ dict_var_names = {'':'',
                  'RC7205':'Regulatory Capital Ratio',
                  'loanratio':'Loan Ratio',
                  'roa':'ROA',
+                 'nim':'Net Interest Margin',
                  'depratio':'Deposit Ratio',
                  'comloanratio':'Commercial Loan Ratio',
                  'RC2170':'Total Assets',

@@ -87,7 +87,7 @@ for var in vars_needed:
     
     plt.xticks([1], ['Full Sample (Not Clean)'])
     
-    fig.savefig('Figures\Plots_datacleaning\Scatter_{}_not_cleaned.png'.format(var))
+    fig.savefig('Figures\Plots_datacleaning\Box_{}_not_cleaned.png'.format(var))
     plt.clf()
     
 ''' NOTES: 
@@ -135,7 +135,7 @@ for var in vars_needed:
     
     plt.xticks([1], ['Full Sample (Clean)'])
     
-    fig.savefig('Figures\Plots_datacleaning\Scatter_{}_cleaned.png'.format(var))
+    fig.savefig('Figures\Plots_datacleaning\Box_{}_cleaned.png'.format(var))
     plt.clf()
     
 ''' NOTE: No strangeties -> save to csv

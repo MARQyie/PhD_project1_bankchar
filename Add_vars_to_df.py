@@ -108,11 +108,6 @@ df = df[(df.RC2170 >= 0) | (df.RC2122 >= 0)]
 
 #------------------------------------------
 # Make new variables
-## Ln loan sales
-df['ln_ls_sec_tot'] = df.ls_sec_tot.apply(lambda x: np.log(x) if x != 0.0 else 0.0)
-df['ln_ls_nonsec_tot'] = df.ls_nonsec_tot.apply(lambda x: np.log(x) if x != 0.0 else 0.0)
-df['ln_ls_tot'] = df.ls_tot.apply(lambda x: np.log(x) if x != 0.0 else 0.0)
-
 ## Loan Sales to TA
 df['ls_sec_tot_ta'] = (df.ls_sec_tot / df.RC2170).replace(np.inf, 0)
 df['ls_nonsec_tot_ta'] = (df.ls_nonsec_tot / df.RC2170).replace(np.inf, 0)
