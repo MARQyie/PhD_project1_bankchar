@@ -21,14 +21,14 @@ import seaborn as sns
 sns.set(style='white',font_scale=1.5)
 
 import os
-os.chdir(r'X:\My Documents\PhD\Materials_dissertation\2-Chapter_2-bank_char')
+os.chdir(r'X:\My Documents\PhD\Materials_papers\1_Working_paper_loan_sales')
 
-import sys # to use the help functions needed
-sys.path.insert(1, r'X:\My Documents\PhD\Coding_docs\Help_functions')
+#import sys # to use the help functions needed
+#sys.path.insert(1, r'X:\My Documents\PhD\Coding_docs\Help_functions')
 
 #------------------------------------------
 # Load df
-df = pd.read_csv('df_assetcomp_raw.csv', index_col = 0 )
+df = pd.read_csv('Data\df_assetcomp_raw.csv', index_col = 0 )
 
 #------------------------------------------
 # Drop useless colums 
@@ -280,7 +280,7 @@ df['intexpsub'] = (df.RIAD4200 / df.RIAD4073).replace(np.inf, 0)
 
 #-------------------------------------------------
 # Add Summary of Deposit data
-from Proxies_org_complex_banks import LimitedServiceBranches,\
+from Code_docs.help_functions.Proxies_org_complex_banks import LimitedServiceBranches,\
      spatialComplexity, noBranchBank, readSODFiles, maxDistanceBranches
 
 ## Number of limited service, full service and total branches
@@ -315,6 +315,6 @@ df.rename(columns = {'Financial Institution Name':'name'}, inplace = True)
 
 #------------------------------------------
 ## Save df
-os.chdir(r'X:\My Documents\PhD\Materials_dissertation\2-Chapter_2-bank_char')
-df.to_csv('df_wp1_newvars.csv')
+os.chdir(r'X:\My Documents\PhD\Materials_papers\1_Working_paper_loan_sales')
+df.to_csv('Data\df_wp1_newvars.csv')
 

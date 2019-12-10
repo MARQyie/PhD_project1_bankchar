@@ -8,7 +8,7 @@ import pandas as pd
 import numpy as np
 
 import os
-os.chdir(r'X:\My Documents\PhD\Materials_dissertation\2-Chapter_2-bank_char')
+os.chdir(r'X:\My Documents\PhD\Materials_papers\1_Working_paper_loan_sales')
 
 # Import method for POLS 
 from linearmodels import PanelOLS
@@ -17,11 +17,8 @@ from linearmodels import PanelOLS
 from linearmodels.iv._utility import annihilate
 from linearmodels.utility import WaldTestStatistic
 
-import sys # to use the help functions needed
-sys.path.insert(1, r'X:\My Documents\PhD\Coding_docs\Help_functions')
-
 # Import a method to make nice tables
-from summary3 import summary_col
+from Code_docs.help_functions.summary3 import summary_col
 
 #--------------------------------------------
 ''' This script estimates the treatment effect of loan sales on credit risk
@@ -65,7 +62,7 @@ from summary3 import summary_col
 # Load data and add needed variables
 
 # Load df
-df = pd.read_csv('df_wp1_clean.csv', index_col = 0)
+df = pd.read_csv('Data\df_wp1_clean.csv', index_col = 0)
 
 ## Make multi index
 df.date = pd.to_datetime(df.date.astype(str))
@@ -281,7 +278,7 @@ def analysesFDIV(df, var_ls, righthand_x, righthand_ghat, righthand_z, time_dumm
     pvals_ls_endo = []
     for dep_var in dep_var_step2:
         res_endo = PanelOLS.from_formula(dep_var + ' ~ ' + righthand_x +\
-                       ' + ' + 'dum_ls' + ' + ' + 'resid_step1' + ' + ' + time_dummies, data = df).\
+                       ' + ' + var_ls + ' + ' + 'resid_step1' + ' + ' + time_dummies, data = df).\
                        fit(cov_type = 'clustered', cluster_entity = True)
         pvals_ls_endo.append(res_endo.pvalues['resid_step1'])
               
@@ -353,7 +350,7 @@ vars_endo = ['dum_ls','ls_tot_ta']
 vars_z = ['RIAD4150 + perc_limited_branch'] # In list in case multiple instruments are needed to be run
 # Setup up th rest of the data for loops
 ## Note: To loop over the four dataframes, we put them in a list
-list_dfs = [df_full_fd, df_pre_fd, df_during_fd,df_post_fd, df_predodd_fd]
+list_dfs = [df_full_fd, df_pre_fd, df_during_fd,df_predodd_fd,df_post_fd]
 
 #----------------------------------------------
 # Run models
@@ -386,7 +383,7 @@ for i in range(len(vars_endo)):
             list_endo_vars.append(endo_var_load)
 
 #----------------------------------------------
-# Make nice tables
+# Set things up for nice tables
 #----------------------------------------------
 
 # Prelims
@@ -400,67 +397,65 @@ def split_list(a_list):
     return a_list[:half], a_list[half:]
 
 ## Determine regression order
-reg_order_step1 = vars_z + righthand_x.split(' + ')
+reg_order_step1 = vars_z[0].split(' + ') + righthand_x.split(' + ')
 reg_order_step2 = ['G_hat_fd'] + righthand_x.split(' + ') + righthand_ghat.split(' + ')
 
 #----------------------------------------------
 '''CHANGE IN CASE OF MULTIPLE OPTIONS FOR Z'''
 # Step 1
 res_step1_dumls, res_step1_lstotta = split_list(res_step1) 
-sum_step1_dumls = summary_col([res_step1_dumls], show = 'se', regressor_order = reg_order_step1)
-sum_step1_lstotta = summary_col([res_step1_lstotta], show = 'se', regressor_order = reg_order_step1)
+sum_step1_dumls = summary_col(res_step1_dumls, show = 'se', regressor_order = reg_order_step1)
+sum_step1_lstotta = summary_col(res_step1_lstotta, show = 'se', regressor_order = reg_order_step1)
 
 # Step 2
-# CHANGE NAMES ETC
-# THIS IS A SETUP, CHANGE TO MAKE EFFICIENT
-res_step2_dumls, res_step2_lstotta = split_list(res_step2) 
+res_step2_dumls, res_step2_lstotta = split_list(res_step2)
 
-tab1 = []
-tab2 = []
-tab3 = []
-tab4 = []
-tab5 = []
-tab6 = []
+res_s2_dumls_shuffled = []
+res_s2_lstotta_shuffled = []
+first_loop = True
 
 for d in range(len(list_dfs)):
-    tab1.append(res_step2_dumls[d][0]) 
-    tab2.append(res_step2_dumls[d][1])
+    for i in range(len(res_step2_dumls[d])):
+        if first_loop:
+            res_s2_dumls_shuffled.append([res_step2_dumls[d][i]])
+            res_s2_lstotta_shuffled.append([res_step2_lstotta[d][i]])
+        else:
+            res_s2_dumls_shuffled[i].append(res_step2_dumls[d][i])
+            res_s2_lstotta_shuffled[i].append(res_step2_lstotta[d][i])
+    first_loop = False
 
-sum_step2_dumls = summary_col([tab1], show = 'se', regressor_order = reg_order_step2)
-
-#----------------------------------------------
-# Make test tables 
-#----------------------------------------------
-''' The test tables are later saved to an excel file together with the results
-    of step 1 and 2. 
+sum_s2_dumls = [] 
+sum_s2_lstotta = [] 
+for vec_dum, vec_ls in zip(res_s2_dumls_shuffled,res_s2_lstotta_shuffled):
+    sum_s2_dumls.append(summary_col(vec_dum, show = 'se', regressor_order = reg_order_step2))    
+    sum_s2_lstotta.append(summary_col(vec_ls, show = 'se', regressor_order = reg_order_step2)) 
     
-    We calculate three different scoring vectors: 1) scoring_vector scores each model
-    between 0 and 1, where 1 is the best, 2) scoring_summary summarizes how each
-    instrument is doing, 3) scoring_variables scores how well each dependent 
-    variable does
-    '''
-test_tables = []
+#----------------------------------------------
+# Make test vectors to be appended to the tables
+## Weak instruments - Step 1
+f_test_dumls, f_test_lstotta = split_list(f_test_step1)
 
-for f, endo, oir in zip(f_test_step1,pvals_ls_endo,sargan_res):
-    test_table_load = tableIVtests(6,f,endo,oir)
-    test_tables.append(test_table_load)
+## Endo - step 2
+endo_dumls, endo_lstotta = split_list(pvals_ls_endo)
+
+### Make the lists to append to table 2
+endo_dumls_sort = [[vec[i] for vec in endo_dumls] for i in range(3)]
+endo_lstotta_sort = [[vec[i] for vec in endo_lstotta] for i in range(3)]
+
+## Sargan test - step 2
+sargan_dumls, sargan_lstotta = split_list(sargan_res)
+
+### Make lists to append to table 2
+'''NOTE: All uneven items are with hetero correction'''
+sargan_dumls_sort = [[vec[i] for vec in sargan_dumls] for i in range(6)]
+sargan_lstotta_sort = [[vec[i] for vec in sargan_lstotta] for i in range(6)]
 
 #----------------------------------------------
-# Save the tables a
+# Prelims for making nice tables
 #----------------------------------------------
-# Make a vector containing names for the sheets
-
-names_dfs = ['Full_','Pre_','During_','Post_','PreDodd_']
-names_depvar = ['coff','all','prov']
-names_dfs_endo = [(a + b) for a in names_dfs for b in vars_endo] 
-sheet_names = [(a + b) for a in names_dfs_endo for b in iter_z] 
-
-#----------------------------------------------
-# Prelims
-''' Note: The prelims set up a dictionary to use in making nice tables.   
-    '''
 ## Make dict that contains all variables and names
-dict_var_names = {'distance':'Max Distance Branches',
+dict_var_names = {'':'',
+                  'distance':'Max Distance Branches',
                  'provratio':'Loan Loss Provisions',
                  'rwata':'RWA/TA',
                  'net_coffratio_tot_ta':'Loan Charge-offs',
@@ -480,7 +475,12 @@ dict_var_names = {'distance':'Max Distance Branches',
                  'perc_limited_branch':'Limited Branches (in %)',
                  'perc_full_branch':'Full Branches (in %)',
                  'unique_states':'Num States Active',
-                 'UNIT':'Unit Bank Indicator'}
+                 'UNIT':'Unit Bank Indicator',
+                 'No. Observations:':'N',
+                 'R-squared:':'$R^2$',
+                 'F-test Weak Instruments':'F-test Weak Instruments',
+                 'DWH-test':'DWH-test',
+                 'P-val Sargan-test':'P-val Sargan-test'}
 
 ### Add the ghat_w variables to the dict
 vars_ghat = pd.Series(righthand_ghat.split(' + ')).unique()
@@ -504,36 +504,106 @@ for key, name in zip(keys_time_dummies, values_time_dummies):
     
 dict_var_names.update(dict_td) 
 
-### Specify a list with variable names to drop when assigning variable labels
-list_drop = ['', '\t Results Summary', 'Model:', 'No. Observations:', 'R-squared:', 'F-statistic:', 'Covariance Type:', 'note:', '\t Std. error in parentheses.', '\t * p<.1, ** p<.05, ***p<.01']
+columns = ['Full','Pre-Crisis','Crisis','Pre-Dodd-Frank','Post-Crisis/Dodd-Frank']
 
 #----------------------------------------------
-# Save step 1, step 2 and the test tables
+# Make table for step 1
+#----------------------------------------------
 
-path = r'X:\My Documents\PhD\Materials_dissertation\2-Chapter_2-bank_char\FD_IV_v3_log.xlsx'
+## Change the lower part of the table
+step1_lower_table_dumls = sum_step1_dumls.tables[2].iloc[[1,2],:]
+step1_lower_table_dumls.loc[-1] = f_test_dumls
+step1_lower_table_dumls.rename({-1:'F-test Weak Instruments'}, axis = 'index', inplace = True)
+
+step1_lower_table_lstotta = sum_step1_lstotta.tables[2].iloc[[1,2],:]
+step1_lower_table_lstotta.loc[-1] = f_test_lstotta
+step1_lower_table_lstotta.rename({-1:'F-test Weak Instruments'}, axis = 'index', inplace = True)
+
+### Add to the table
+sum_step1_dumls.tables[2] = step1_lower_table_dumls
+sum_step1_lstotta.tables[2] = step1_lower_table_lstotta
+
+## Make new table
+table_step1_dumls = pd.concat(sum_step1_dumls.tables[1:3])
+table_step1_lstotta = pd.concat(sum_step1_lstotta.tables[1:3])
+
+### Change the columns of the table
+table_step1_dumls.columns = columns
+table_step1_lstotta.columns = columns
+
+### Change the index
+table_step1_dumls.index = [dict_var_names[key] for key in table_step1_dumls.index]
+table_step1_lstotta.index = [dict_var_names[key] for key in table_step1_lstotta.index]
+
+#----------------------------------------------
+# Make table for step 2
+#----------------------------------------------
+
+list_tables_step2_dumls = []
+list_tables_step2_lstotta = []
+count = 0
+
+for i in range(3):
+    for j in range(2):
+        
+        ## Change the lower part of the table
+        step2_lower_table_dumls = sum_s2_dumls[count].tables[2].iloc[[1,2],:]
+        step2_lower_table_dumls.loc[-1] = endo_dumls_sort[i]
+        step2_lower_table_dumls.rename({-1:'DWH-test'}, axis = 'index', inplace = True)
+        step2_lower_table_dumls.loc[-1] =  sargan_dumls_sort[count]
+        step2_lower_table_dumls.rename({-1:'P-val Sargan-test'}, axis = 'index', inplace = True)
+        
+        step2_lower_table_lstotta = sum_s2_lstotta[count].tables[2].iloc[[1,2],:]
+        step2_lower_table_lstotta.loc[-1] = endo_lstotta_sort[i]
+        step2_lower_table_lstotta.rename({-1:'DWH-test'}, axis = 'index', inplace = True)
+        step2_lower_table_lstotta.loc[-1] =  sargan_lstotta_sort[count]
+        step2_lower_table_lstotta.rename({-1:'P-val Sargan-test'}, axis = 'index', inplace = True)
+        
+        ### Add to the table
+        sum_s2_dumls[count].tables[2] = step2_lower_table_dumls
+        sum_s2_lstotta[count].tables[2] = step2_lower_table_lstotta
+        
+        ## Make new table
+        table_step2_dumls = pd.concat(sum_s2_dumls[count].tables[1:3])
+        table_step2_lstotta = pd.concat(sum_s2_lstotta[count].tables[1:3])
+        
+        ### Change the columns of the table
+        table_step2_dumls.columns = columns
+        table_step2_lstotta.columns = columns
+        
+        ### Change the index
+        dict_var_names.update({'G_hat_fd':'Dummy Loan Sales'})
+        table_step2_dumls.index = [dict_var_names[key] for key in table_step2_dumls.index]
+        dict_var_names.update({'G_hat_fd':'Loan Sales/TA'})
+        table_step2_lstotta.index = [dict_var_names[key] for key in table_step2_lstotta.index]
+            
+        ## Append to the list
+        list_tables_step2_dumls.append(table_step2_dumls)
+        list_tables_step2_lstotta.append(table_step2_lstotta)
+
+        ## Add one to count
+        count += 1
+
+#----------------------------------------------
+# Save the tables 
+#----------------------------------------------
+# Prelims
+sheets_step2 = ['Charge-offs','Allowance','Provisions',\
+                'Charge-offs_corr','Allowance_corr','Provisions_corr']
+
+# Save the tables
+path = r'Results\FD_IV_v4_log.xlsx'
 
 with pd.ExcelWriter(path) as writer:
-    for i in range(len(res_step1)):
-        
-        # Get the index (variable names) from the summary files
-        vars_step1 = [x for x in pd.concat(res_step1[i].tables,axis=0).index.tolist() if x not in list_drop]
-        vars_step2 = [x for x in pd.concat(res_step2[i].tables,axis=0).index.tolist() if x not in list_drop]
-        
-        # Add a dict entry for the correct definition of G_hat
-        if list_endo_vars[i] == 0:
-            dict_var_names.update({'G_hat_fd':'Dummy Loan Sales'})
-        else:
-            dict_var_names.update({'G_hat_fd':'Loan Sales/TA'})
-        
-        # Determine the variable names
-        var_names_step1 = [dict_var_names[key] for key in vars_step1]
-        var_names_step2 = [dict_var_names[key] for key in vars_step2]
-        
-        # Save the variable names and keys in a dict
-        dict_names_step1 = dict(zip(vars_step1,var_names_step1))
-        dict_names_step2 = dict(zip(vars_step2,var_names_step2))
-        
-        # Save the results of step 1 and 2 and the test statistics to the excel file
-        res_step1[i].to_excel(writer, sheet_name = sheet_names[i] + '_step1',rename_index = dict_names_step1)
-        res_step2[i].to_excel(writer, sheet_name = sheet_names[i] + '_step2', rename_index = dict_names_step2)
-        test_tables[i].to_excel(writer, sheet_name = sheet_names[i] + '_tests')
+    # Save dumls
+    table_step1_dumls.to_excel(writer, sheet_name = 'Step 1 Dumls')
+
+    for i in range(6):
+        list_tables_step2_dumls[i].to_excel(writer, sheet_name = 'Dumls - {}'.format(sheets_step2[i]))  
+    
+    # Save LS_tot_ta
+    table_step1_lstotta.to_excel(writer, sheet_name = 'Step 1 LSTA') 
+    
+    for i in range(6):
+        list_tables_step2_lstotta[i].to_excel(writer, sheet_name = 'LSTA - {}'.format(sheets_step2[i]))    
+    

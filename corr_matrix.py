@@ -14,15 +14,12 @@ import seaborn as sns
 sns.set(style = 'whitegrid',font_scale=1.2)
 
 import os
-os.chdir(r'X:\My Documents\PhD\Materials_dissertation\2-Chapter_2-bank_char')
+os.chdir(r'X:\My Documents\PhD\Materials_papers\1_Working_paper_loan_sales')
 
 from linearmodels import PanelOLS
 from linearmodels.panel import compare
 
-import sys # to use the help functions needed
-sys.path.insert(1, r'X:\My Documents\PhD\Coding_docs\Help_functions')
-
-from summary3 import summary_col
+from Code_docs.help_functions.summary3 import summary_col
 
 # Import method that adds a constant to a df
 from statsmodels.tools.tools import add_constant
@@ -38,7 +35,7 @@ from statsmodels.tools.tools import add_constant
 # Load data and add needed variables
 
 # Load df
-df = pd.read_csv('df_wp1_clean.csv', index_col = 0)
+df = pd.read_csv('Data\df_wp1_clean.csv', index_col = 0)
 
 ## Make multi index
 df.date = pd.to_datetime(df.date.astype(str))
@@ -134,13 +131,16 @@ for matrix, title, path in zip(corr_matrices, titles, paths):
     ax.set_xticklabels(
         labels,
         rotation=45,
-        horizontalalignment='right'
+        horizontalalignment='right',
+        fontsize = 16
     )
     ax.set_yticklabels(
         labels,
+        fontsize = 16
     );
-            
-    fig.savefig(path)     
+    
+    plt.tight_layout()
+    fig.savefig(r'Figures\\' + path)     
     
     plt.close(fig)
     plt.clf()

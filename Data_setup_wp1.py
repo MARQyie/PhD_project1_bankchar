@@ -19,7 +19,7 @@ import seaborn as sns
 sns.set(style='white',font_scale=1.5)
 
 import os
-os.chdir(r'X:\My Documents\PhD\Materials_dissertation\2-Chapter_2-bank_char')
+os.chdir(r'X:\My Documents\PhD\Materials_papers\1_Working_paper_loan_sales')
 
 import csv
 
@@ -395,5 +395,5 @@ df_raw = df_raw.merge(df_rib, on = ['IDRSSD', 'date'], how = 'left')
 df_raw = df_raw.merge(df_info, on = ['IDRSSD', 'date'], how = 'left')
 df_raw = df_raw.merge(df_por, on = ['IDRSSD', 'date'], how = 'left')
 
-df_raw.to_csv('df_assetcomp_raw.csv')
+df_raw.to_csv('Data\df_assetcomp_raw.csv')
 

@@ -8,7 +8,7 @@ import pandas as pd
 import numpy as np
 
 import os
-os.chdir(r'X:\My Documents\PhD\Materials_dissertation\2-Chapter_2-bank_char')
+os.chdir(r'X:\My Documents\PhD\Materials_papers\1_Working_paper_loan_sales')
 
 ## Plotting packages
 import matplotlib.pyplot as plt
@@ -25,7 +25,7 @@ sns.set(style = 'whitegrid', font_scale = 1.75, palette = 'Greys_d')
 # Load data and add needed variables
 
 # Load df
-df = pd.read_csv('df_wp1_newvars.csv', index_col = 0)
+df = pd.read_csv('Data\df_wp1_newvars.csv', index_col = 0)
 
 ## Make multi index
 df.date = pd.to_datetime(df.date.astype(str).str.strip() + '1231')
@@ -87,7 +87,7 @@ for var in vars_needed:
     
     plt.xticks([1], ['Full Sample (Not Clean)'])
     
-    fig.savefig('Box_plots/Scatter_{}_not_cleaned.png'.format(var))
+    fig.savefig('Figures\Plots_datacleaning\Scatter_{}_not_cleaned.png'.format(var))
     plt.clf()
     
 ''' NOTES: 
@@ -135,7 +135,7 @@ for var in vars_needed:
     
     plt.xticks([1], ['Full Sample (Clean)'])
     
-    fig.savefig('Box_plots/Scatter_{}_cleaned.png'.format(var))
+    fig.savefig('Figures\Plots_datacleaning\Scatter_{}_cleaned.png'.format(var))
     plt.clf()
     
 ''' NOTE: No strangeties -> save to csv
@@ -159,7 +159,7 @@ for var in vars_needed:
     plt.hist(np.log(data + 1), bins = 25, label = 'Log transformed', alpha = .5, color = color[1]) 
     plt.legend()
     
-    fig.savefig('Box_plots/Hist_{}.png'.format(var))
+    fig.savefig('Figures\Plots_datacleaning\Hist_{}.png'.format(var))
     plt.clf()
     
 '''NOTE: The data looks better when log transformed --> comes closer to a 
@@ -167,5 +167,5 @@ for var in vars_needed:
     
 #------------------------------------------
 ## Save df
-os.chdir(r'X:\My Documents\PhD\Materials_dissertation\2-Chapter_2-bank_char')
-df.to_csv('df_wp1_clean.csv')
+os.chdir(r'X:\My Documents\PhD\Materials_papers\1_Working_paper_loan_sales')
+df.to_csv('Data\df_wp1_clean.csv')

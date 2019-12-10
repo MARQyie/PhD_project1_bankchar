@@ -21,11 +21,11 @@ import seaborn as sns
 sns.set(style='white',font_scale=1.5)
 
 import os
-os.chdir(r'X:\My Documents\PhD\Materials_dissertation\2-Chapter_2-bank_char')
+os.chdir(r'X:\My Documents\PhD\Materials_papers\1_Working_paper_loan_sales')
 
 #------------------------------------------
 # Load df
-df = pd.read_csv('df_wp1_clean.csv', index_col = 0 )
+df = pd.read_csv('Data\df_wp1_clean.csv', index_col = 0 )
 
 # Make multi index
 df.date = pd.to_datetime(df.date.astype(str).str.strip())
@@ -113,8 +113,8 @@ labels_sod = ['Number of Branches','Maximum Distance Between Branches','Percenta
 table_full = makeTables(df,vars_call + vars_sod,labels_call + labels_sod,list_multicolumns)
 
 ## Save to Excel
-table_full.to_excel('Summary_statistics_full_sample.xlsx',float_format="%.4f")
-table_full.to_latex('Summary_statistics_full_sample.tex',float_format="%.4f")
+table_full.to_excel('Tables\Summary_statistics_full_sample.xlsx',float_format="%.4f")
+table_full.to_latex('Tables\Summary_statistics_full_sample.tex',float_format="%.4f")
 
 #------------------------------------------
 #------------------------------------------
@@ -231,12 +231,12 @@ table_crisis = makeTablesSubsets(df,vars_sub,labels_sub,list_multicolumns_crisis
 table_dodd = makeTablesSubsets(df,vars_sub,labels_sub,list_multicolumns_dodd,'dodd')
 
 ## To Excel
-with pd.ExcelWriter('Summary_statistics_subsets.xlsx') as writer:
+with pd.ExcelWriter('Tables\Summary_statistics_subsets.xlsx') as writer:
     table_size.to_excel(writer, sheet_name = 'Size',float_format="%.4f")
     table_crisis.to_excel(writer, sheet_name = 'Crisis',float_format="%.4f")
     table_dodd.to_excel(writer, sheet_name = 'Dodd-Frank',float_format="%.4f")
     
 ## To Latex
-table_size.to_latex('Summary_statistics_size_sample.tex',float_format="%.4f")
-table_crisis.to_latex('Summary_statistics_crisis_sample.tex',float_format="%.4f")
-table_dodd.to_latex('Summary_statistics_dodd_sample.tex',float_format="%.4f")
+table_size.to_latex('Tables\Summary_statistics_size_sample.tex',float_format="%.4f")
+table_crisis.to_latex('Tables\Summary_statistics_crisis_sample.tex',float_format="%.4f")
+table_dodd.to_latex('Tables\Summary_statistics_dodd_sample.tex',float_format="%.4f")

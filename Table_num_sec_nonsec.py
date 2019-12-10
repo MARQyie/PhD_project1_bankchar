@@ -14,11 +14,11 @@ sns.set_palette('Greys')
 sns.set_context('notebook')
 
 import os
-os.chdir(r'X:\My Documents\PhD\Materials_dissertation\2-Chapter_2-bank_char')
+os.chdir(r'X:\My Documents\PhD\Materials_papers\1_Working_paper_loan_sales')
 
 #------------------------------------------
 # Load df
-df = pd.read_csv('df_wp1_clean.csv', index_col = 0)
+df = pd.read_csv('Data/df_wp1_clean.csv', index_col = 0)
 
 # Make multi index
 df.set_index(['IDRSSD','date'],inplace=True)
@@ -81,14 +81,5 @@ table_count.rename(columns = {'date':''},inplace = True)
 
 #----------------------------------------
 ## Save table
-table_count.to_excel('Table_ls.xlsx', index = False)
-table_count.to_latex('Table_ls_latex.tex')
-
-#----------------------------------------
-# Small checks for Credit Derivatives
-
-## Unique credit derivative users 
-df[(df.cd_pur + df.cd_sold) > 0].index.get_level_values(0).nunique() #78
-
-# Do these banks all sell loans?
-df[df.index.get_level_values(0).isin(df[(df.cd_pur + df.cd_sold) > 0].index.get_level_values(0).unique().tolist())].groupby(df[df.index.get_level_values(0).isin(df[(df.cd_pur + df.cd_sold) > 0].index.get_level_values(0).unique().tolist())].index.get_level_values(0)).sum(axis = 1).ls_tot # not all of these banks have loan sales
+table_count.to_excel('Tables\Table_ls.xlsx', index = False)
+table_count.to_latex('Tables\Table_ls_latex.tex')

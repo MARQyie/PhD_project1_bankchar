@@ -22,13 +22,13 @@ import seaborn as sns
 sns.set(style = 'whitegrid', font_scale = 1.75, palette = 'Greys_d')
 
 import os
-os.chdir(r'X:\My Documents\PhD\Materials_dissertation\2-Chapter_2-bank_char')
+os.chdir(r'X:\My Documents\PhD\Materials_papers\1_Working_paper_loan_sales')
 
 from scipy import stats
 
 #------------------------------------------
 # Load df
-df = pd.read_csv('df_wp1_clean.csv', index_col = 0)
+df = pd.read_csv('Data\df_wp1_clean.csv', index_col = 0)
 
 # Make multi index
 df.date = pd.to_datetime(df.date.astype(str).str.strip())
@@ -60,7 +60,7 @@ ax.legend()
 plt.tight_layout()
 plt.show()
 
-fig.savefig('Fig1a_total_ls_sec.png')
+fig.savefig('Figures\Fig1a_total_ls_sec.png')
 
 nonsec_year = df[df.ls_nonsec_tot > 0][['RCB790','RCB791','RCB792','RCB793','RCB794','RCB795','RCB796', 'ls_nonsec_tot']].sum(level = [1,1])
 nonsec_year = nonsec_year.droplevel(level = 0)
@@ -76,7 +76,7 @@ ax.legend()
 plt.tight_layout()
 plt.show()
 
-fig.savefig('Fig1b_total_ls_nonsec.png')
+fig.savefig('Figures\Fig1b_total_ls_nonsec.png')
 
 #-----------------------------------------
 # Figure 2: Capital ratios and securitization over TA
@@ -102,7 +102,7 @@ ax.legend(h1+h2, l1+l2, loc=3)
 plt.tight_layout()
 plt.show()
 
-fig.savefig('Fig2_capta_secta.png')
+fig.savefig('Figures\Fig2_capta_secta.png')
 
 #-----------------------------------------
 # Figure 3: Capital ratios securitizers and non-securitizers
@@ -120,7 +120,7 @@ ax.legend()
 plt.tight_layout()
 plt.show()
 
-fig.savefig('Fig3_capta_sec_nonsec.png')
+fig.savefig('Figures\Fig3_capta_sec_nonsec.png')
 
 #-----------------------------------------
 # Figure 4: Stacked plot Securitizated and nonsecuritized loan sales
@@ -144,7 +144,7 @@ ax.legend()
 fig.tight_layout()
 plt.show()
 
-fig.savefig('Fig4a_stacked_cat_secls.png')
+fig.savefig('Figures\Fig4a_stacked_cat_secls.png')
 
 ## Nonsec Plot
 labels = ['Residential','Home Equity','Credit Card','Auto','Other Consumer','Commercial','All other']
@@ -159,7 +159,7 @@ ax.legend()
 fig.tight_layout()
 plt.show()
 
-fig.savefig('Fig4b_stacked_cat_nonsecls.png')
+fig.savefig('Figures\Fig4b_stacked_cat_nonsecls.png')
 
 #-----------------------------------------
 # Figure 5: Plot the allowance ratios
@@ -188,7 +188,7 @@ ax.legend(h1+h2, l1+l2, loc=3)
 fig.tight_layout()
 plt.show()
 
-fig.savefig('Fig5_allowance_rates.png')
+fig.savefig('Figures\Fig5_allowance_rates.png')
 
 #-----------------------------------------
 # Figure 6: Credit exposure loan sales
@@ -212,7 +212,7 @@ ax.legend()
 fig.tight_layout()
 plt.show()
 
-fig.savefig('Fig6a_credex_ratio.png')
+fig.savefig('Figures\Fig6a_credex_ratio.png')
 
 #-----------------------------------------
 ## Different scaling
@@ -245,11 +245,11 @@ ax.legend(h1+h2, l1+l2, loc=3)
 fig.tight_layout()
 plt.show()
 
-fig.savefig('Fig6b_credex_ratio_alt.png')
+fig.savefig('Figures\Fig6b_credex_ratio_alt.png')
 #-----------------------------------------
 # Figure 7: Concentration of securitizing banks
 '''This figure displays the concentration among loan selling banks in 2018'''
-
+'''
 ## Make the array to plot
 ls_sum_sort = df[(df.ls_tot > 0) & (df.index.get_level_values(1) == '2018-12-30')].ls_tot.sort_values(ascending = False)
 
@@ -270,7 +270,7 @@ for i in range(len(groups)):
     ax.text(ls_cons[i] + 0.5, i, str(round(ls_cons[i],1)), fontweight = 'bold', verticalalignment='center')
 fig.tight_layout()
 
-fig.savefig('Fig7_concentration_banks.png')
+fig.savefig('Figures\Fig7_concentration_banks.png')
 
 #-----------------------------------------
 # NOT INFORMATIVE
@@ -290,7 +290,7 @@ plt.title('Top 10 Banks Loan Sales-to-Total Assets')
 ax.set(xlabel = 'Percentage of Total Assets (in %)')
 ax.bar(top_10_sec.name, top_10_sec.iloc[:,0])
 plt.xticks(rotation='vertical')
-
+'''
 #-----------------------------------------
 # Figure 8: Number of Branches vs. LS/TA
 
@@ -307,7 +307,7 @@ ax.legend()
 fig.tight_layout()
 plt.show()
 
-fig.savefig('Fig8_numbranch_lsta.png')
+fig.savefig('Figures\Fig8_numbranch_lsta.png')
 
 #-----------------------------------------
 # Figure 9: Cap/TA vs. LS/TA
@@ -337,7 +337,7 @@ ax.legend()
 fig.tight_layout()
 plt.show()
 
-fig.savefig('Fig9_capta_lsta.png')
+fig.savefig('Figures\Fig9_capta_lsta.png')
 
 #-----------------------------------------
 # Figure 10: Credit derivatives/TA vs. LS/TA
@@ -372,7 +372,7 @@ ax.legend(h1+h2, l1+l2, loc=1)
 fig.tight_layout()
 plt.show()
 
-fig.savefig('Fig10a_cdta_lsta.png')
+fig.savefig('Figures\Fig10a_cdta_lsta.png')
 
 #---------------------------------------------
 # Without Loan sales
@@ -387,7 +387,7 @@ ax.legend()
 fig.tight_layout()
 plt.show()
 
-fig.savefig('Fig10b_cd.png')
+fig.savefig('Figures\Fig10b_cd.png')
 
 #-----------------------------------------------
 # Figure 11: Charge-offs 
@@ -407,7 +407,7 @@ ax.legend()
 fig.tight_layout()
 plt.show()
 
-fig.savefig('Fig11_charge_offs.png')
+fig.savefig('Figures\Fig11_charge_offs.png')
 
 # Net charge offs
 fig, ax = plt.subplots(figsize=(12, 8))
@@ -426,7 +426,7 @@ ax.legend()
 fig.tight_layout()
 plt.show()
 
-fig.savefig('Fig11_charge_offs.png')
+fig.savefig('Figures\Fig11_charge_offs.png')
 
 
 #-----------------------------------------------
@@ -442,4 +442,4 @@ ax.plot(df[df.RCONB557 > 0.0].RCONB557.sum(level = [1,1]).droplevel(level = 0).d
         color = 'black')
 ax.grid(True)
 
-fig.savefig('Fig12_off_to_loan_allowances.png')
+fig.savefig('Figures\Fig12_off_to_loan_allowances.png')
