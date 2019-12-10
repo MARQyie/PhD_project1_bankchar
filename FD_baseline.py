@@ -121,10 +121,7 @@ def analysesFD(df, var_ls, righthand_x, time_dummies):
     
     ## Make a string of the time dummy vector
     time_dummies = ' + '.join(time_dummies)
-    
-    ## Determine regression order
-    reg_order = [var_ls] + vars_x
-    
+
     #----------------------------------------------    
     # First check the data on column rank
     ## If not full column rank return empty lists
@@ -145,9 +142,6 @@ def analysesFD(df, var_ls, righthand_x, time_dummies):
                      fit(cov_type = 'clustered', cluster_entity = True)
         res_ols.append(res) # append to results list
 
-    # Create the summary of the models
-    sum_ols = summary_col(res_ols, show = 'se', regressor_order = reg_order)
- 
     #----------------------------------------------
     # Tests
     #----------------------------------------------
@@ -183,9 +177,9 @@ def analysesFD(df, var_ls, righthand_x, time_dummies):
         reset_tests.append(pvals)
         
     if var_ls == 'dum_ls':
-        return(sum_ols,reset_tests,0)
+        return(res_ols,reset_tests,0)
     else:
-        return(sum_ols,reset_tests,1)
+        return(res_ols,reset_tests,1)
 
 #----------------------------------------------
 #----------------------------------------------
@@ -201,7 +195,7 @@ else:
 
 time_dummies = ' + '.join(col_dummy[1:])
    
-vars_ls = ['ls_tot_ta'] 
+vars_ls = ['dum_ls','ls_tot_ta'] 
 
 # Setup up th rest of the data for loops
 ## Note: To loop over the four dataframes, we put them in a list
@@ -220,17 +214,162 @@ res_ols = []
 pvals_reset = []
 list_ls_vars = []
 
-for data in list_dfs:
+for i in range(len(vars_ls)):
+    for data in list_dfs:
     # First set the time dummies (depends on the subset which ones to take)
-    time_dummies = ['dum{}'.format(year) for year in data.index.get_level_values(1).unique().astype(str).str[:4][1:].tolist()]
+        time_dummies = ['dum{}'.format(year) for year in data.index.get_level_values(1).unique().astype(str).str[:4][1:].tolist()]
     
-    for i in range(len(vars_ls)):
         res_ols_load, pvals_reset_load, ls_var_load =\
         analysesFD(data, vars_ls[i], righthand_x, time_dummies)
             
         res_ols.append(res_ols_load)
         pvals_reset.append(pvals_reset_load)
         list_ls_vars.append(ls_var_load)
+
+#----------------------------------------------
+# Set things up for nice tables
+#----------------------------------------------
+
+# Prelims
+def split_list(a_list):
+    half = len(a_list)//2
+    return a_list[:half], a_list[half:]
+
+## Determine regression order
+reg_order = vars_ls + righthand_x.split(' + ')
+
+#----------------------------------------------
+res_dumls, res_lstotta = split_list(res_ols) 
+
+res_dumls_shuffled = []
+res_lstotta_shuffled = []
+first_loop = True
+
+for d in range(len(list_dfs)):
+    for i in range(len(res_dumls[d])):
+        if first_loop:
+            res_dumls_shuffled.append([res_dumls[d][i]])
+            res_lstotta_shuffled.append([res_lstotta[d][i]])
+        else:
+            res_dumls_shuffled[i].append(res_dumls[d][i])
+            res_lstotta_shuffled[i].append(res_lstotta[d][i])
+    first_loop = False
+
+sum_dumls = [] 
+sum_lstotta = [] 
+for vec_dum, vec_ls in zip(res_dumls_shuffled,res_lstotta_shuffled):
+    sum_dumls.append(summary_col(vec_dum, show = 'se', regressor_order = reg_order))    
+    sum_lstotta.append(summary_col(vec_ls, show = 'se', regressor_order = reg_order)) 
+
+#----------------------------------------------
+# Prelims for making nice tables
+#----------------------------------------------
+## Make dict that contains all variables and names
+dict_var_names = {'':'',
+                  'distance':'Max Distance Branches',
+                 'provratio':'Loan Loss Provisions',
+                 'rwata':'RWA/TA',
+                 'net_coffratio_tot_ta':'Loan Charge-offs',
+                 'allowratio_tot_ta':'Loan Loss Allowances',
+                 'ls_tot_ta':'Loan Sales/TA',
+                 'dum_ls':'Dummy Loan Sales',
+                 'size':'Log(TA)',
+                 'RC7205':'Regulatory Capital Ratio',
+                 'loanratio':'Loan Ratio',
+                 'roa':'ROA',
+                 'depratio':'Deposit Ratio',
+                 'comloanratio':'Commercial Loan Ratio',
+                 'RC2170':'Total Assets',
+                 'num_branch':'Num Branches',
+                 'bhc':'BHC Indicator',
+                 'RIAD4150':'Num Employees',
+                 'perc_limited_branch':'Limited Branches (in %)',
+                 'perc_full_branch':'Full Branches (in %)',
+                 'unique_states':'Num States Active',
+                 'UNIT':'Unit Bank Indicator',
+                 'No. Observations:':'N',
+                 'R-squared:':'$R^2$',
+                 'F-test Weak Instruments':'F-test Weak Instruments',
+                 'DWH-test':'DWH-test',
+                 'P-val Sargan-test':'P-val Sargan-test'}
+
+## Add the time dummies to the dict
+keys_time_dummies = df_full_fd.columns[df_full_fd.columns.str.contains('dum2')]
+values_time_dummies = 'I(t=' + keys_time_dummies.str[3:] + ')'
+
+dict_td = {}
+
+for key, name in zip(keys_time_dummies, values_time_dummies):
+    dict_td[key] = name
+    
+dict_var_names.update(dict_td) 
+
+columns = ['Full','Pre-Crisis','Crisis','Pre-Dodd-Frank','Post-Crisis/Dodd-Frank']
+
+#----------------------------------------------
+# Make table 
+#----------------------------------------------
+
+list_tables_dumls = []
+list_tables_lstotta = []
+
+for i in range(len(sum_dumls)):
+
+    ## Change the lower part of the table
+    lower_table_dumls = sum_dumls[i].tables[2].iloc[[1,2],:]
+    lower_table_lstotta = sum_lstotta[i].tables[2].iloc[[1,2],:]
+       
+    ### Add to the table
+    sum_dumls[i].tables[2] = lower_table_dumls
+    sum_lstotta[i].tables[2] = lower_table_lstotta
+    
+    ## Make new table
+    table_dumls = pd.concat(sum_dumls[i].tables[1:3])
+    table_lstotta = pd.concat(sum_lstotta[i].tables[1:3])
+    
+    ### Change the columns of the table
+    table_dumls.columns = columns
+    table_lstotta.columns = columns
+    
+    ### Change the index
+    dict_var_names.update({'G_hat_fd':'Dummy Loan Sales'})
+    table_dumls.index = [dict_var_names[key] for key in table_dumls.index]
+    dict_var_names.update({'G_hat_fd':'Loan Sales/TA'})
+    table_lstotta.index = [dict_var_names[key] for key in table_lstotta.index]
+        
+    ## Append to the list
+    list_tables_dumls.append(table_dumls)
+    list_tables_lstotta.append(table_lstotta)
+
+#----------------------------------------------
+# Save the tables 
+#----------------------------------------------
+# Prelims
+sheets = ['Charge-offs','Allowance','Provisions']
+
+# Save the tables
+path = r'X:\My Documents\PhD\Materials_dissertation\2-Chapter_2-bank_char\FD_v2_log.xlsx'
+
+with pd.ExcelWriter(path) as writer:
+    # Save dumls
+    for i in range(len(list_tables_dumls)):
+        list_tables_dumls[i].to_excel(writer, sheet_name = 'Dumls - {}'.format(sheets[i])) 
+    
+    # Save LS_tot_ta
+    for i in range(len(list_tables_lstotta)):
+        list_tables_lstotta[i].to_excel(writer, sheet_name = 'LSTA - {}'.format(sheets[i]))
+
+
+
+
+
+
+
+
+
+
+
+
 
 #----------------------------------------------
 # Save the tables and scoring vector
