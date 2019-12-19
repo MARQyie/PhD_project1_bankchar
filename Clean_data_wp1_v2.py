@@ -35,7 +35,8 @@ vars_needed = ['provratio','rwata','net_coffratio_tot_ta',\
                'allowratio_tot_ta','ls_tot_ta','size',\
                'RC7205','loanratio','roa','depratio','comloanratio','RC2170',\
                'num_branch', 'RIAD4150', 'perc_limited_branch',\
-               'unique_states','distance','roe', 'nim']
+               'unique_states','distance', 'nim','nnim','mortratio','consloanratio',\
+               'agriloanratio','loanhhi']
 
 #----------------------------------------------
 # Drop Nans and check inf
@@ -49,7 +50,8 @@ df.replace([np.inf, -np.inf], np.nan).dropna(subset = vars_needed, inplace = Tru
 
 #----------------------------------------------
 # Dictionary with Variable Names
-dict_var_names = {'distance':'Max Distance Branches',
+dict_var_names = {'':'',
+                  'distance':'Max Distance Branches',
                  'provratio':'Loan Loss Provisions',
                  'rwata':'RWA/TA',
                  'net_coffratio_tot_ta':'Loan Charge-offs',
@@ -70,9 +72,12 @@ dict_var_names = {'distance':'Max Distance Branches',
                  'perc_full_branch':'Full Branches (in %)',
                  'unique_states':'Num States Active',
                  'UNIT':'Unit Bank Indicator',
-                 'roe':'ROE',
-                 'nim':'Net Interest Margin'}
-
+                 'nim':'Net Interst Margin',
+                 'nnim':'Net Non-Interest Margin',
+                 'mortratio':'Mortgage Ratio',
+                 'consloanratio':'Consumer Loan Ratio',
+                 'agriloanratio':'Agri Loan Ratio',
+                 'loanhhi':'Loan HHI'}
 
 #----------------------------------------------
 # Box plots
@@ -102,7 +107,7 @@ for var in vars_needed:
 # Clean data further
 #----------------------------------------------
 
-## Remove big outlier num_branch and TA
+## Remove big outlier num_branch
 df = df[df.num_branch != df.num_branch.max()]
 
 ## Limit ROA and prov ratio to [-1,1]
@@ -112,10 +117,10 @@ for i in vars_limit:
     df = df[df['{}'.format(i)].between(-1,1,inclusive = True)]
     
 # Limit RC7205 to [0,1] 
-vars_limit = ['loanratio','RC7205']
+vars_limit = ['loanratio','RC7205','mortratio']
 
 for i in vars_limit:
-    df = df[df['{}'.format(i)].between(-1,1,inclusive = True)]    
+    df = df[df['{}'.format(i)].between(0,1,inclusive = True)]    
 
 # Drop outlier on ls_tot_ta
 ## First check whether it is still there

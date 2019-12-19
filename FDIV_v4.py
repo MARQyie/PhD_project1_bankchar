@@ -20,6 +20,9 @@ from linearmodels.utility import WaldTestStatistic
 # Import a method to make nice tables
 from Code_docs.help_functions.summary3 import summary_col
 
+# Used for the partial R2s
+from scipy import stats
+
 #--------------------------------------------
 ''' This script estimates the treatment effect of loan sales on credit risk
     with an IV estimation procedure. The procedure has two steps
@@ -77,7 +80,8 @@ vars_needed = ['distance','provratio','net_coffratio_tot_ta',\
                'allowratio_tot_ta','ls_tot_ta','dum_ls','size',\
                'RC7205','loanratio','roa','depratio','comloanratio','RC2170',\
                'num_branch', 'bhc', 'RIAD4150', 'perc_limited_branch',\
-               'unique_states']
+               'unique_states','mortratio','consloanratio',\
+               'agriloanratio','loanhhi']
 df_full = df[vars_needed]
 
 #---------------------------------------------------
@@ -91,9 +95,10 @@ df_full = df_full.transform(lambda df: np.log(1 + df))
 
 ## Add the x_xbar to the df
 x_xbar = df_full[['RC7205','loanratio','roa',\
-                  'depratio','comloanratio','RC2170','bhc']].transform(lambda df: df - df.mean())
+                  'depratio','comloanratio','RC2170','bhc','mortratio','consloanratio','loanhhi']].transform(lambda df: df - df.mean())
 df_full[[x + '_xbar' for x in ['RC7205','loanratio',\
-                               'roa','depratio','comloanratio','RC2170','bhc']]] = x_xbar
+                               'roa','depratio','comloanratio','RC2170','bhc',\
+                               'mortratio','consloanratio','loanhhi']]] = x_xbar
 
 ## Take the first differences
 df_full_fd = df_full.groupby(df_full.index.get_level_values(0)).transform(lambda df: df.shift(periods = 1) - df).dropna()
@@ -200,7 +205,7 @@ def analysesFDIV(df, var_ls, righthand_x, righthand_ghat, righthand_z, time_dumm
     rank_full = np.linalg.matrix_rank(df[vars_x + vars_z + time_dummies.split(' + ')]) 
     
     if rank_full != len(vars_x + vars_z + time_dummies.split(' + ')):
-        return([],[],[],[],[],[])
+        return([],[],[],[],[],[],[])
     
     #----------------------------------------------
     # STEP 1: First Stage
@@ -244,10 +249,30 @@ def analysesFDIV(df, var_ls, righthand_x, righthand_ghat, righthand_z, time_dumm
              
         # with correction unobserved heterogeneity
         res_step2b = PanelOLS.from_formula(dep_var + ' ~ ' + righthand_x +\
-                     ' + ' + 'G_hat_fd' + '+' + righthand_ghat + ' + ' + time_dummies, data = df).\
+                     ' + ' + 'G_hat_fd' + ' + ' + righthand_ghat + ' + ' + time_dummies, data = df).\
                      fit(cov_type = 'clustered', cluster_entity = True)
         res_step2.append(res_step2b) # append to results list
-        
+
+    #----------------------------------------------
+    # Partia Correlation and R-squared Second stage
+    #----------------------------------------------
+    ''' We calculate the partial correlation and rsquared of all control variables, we control for
+        the loan sale variable and the time dummies. Only for step 2a.
+        '''
+    pcorr_matrix = pd.DataFrame(index = vars_x, columns = ['partial_corr_{}'.format(i) for i in ['coff','allow','prov']])   
+    pr2_matrix = pd.DataFrame(index = vars_x, columns = ['partial_r2_{}'.format(i) for i in ['coff','allow','prov']])
+    
+    partial0 = PanelOLS.from_formula(dep_var + ' ~ ' + '1' + ' + ' +  'G_hat_fd' +\
+                                            ' + ' + time_dummies, data = df).\
+                     fit(cov_type = 'clustered', cluster_entity = True)
+    
+    for dep_var, label_pcorr,label_pr2 in zip(dep_var_step2,pcorr_matrix.columns.tolist(),pr2_matrix.columns.tolist()):                 
+        for var_single in vars_x:      
+            partial1 = PanelOLS.from_formula(dep_var + ' ~ ' + '1' + ' + '  + var_single + ' + ' + 'G_hat_fd' +\
+                ' + ' + time_dummies, data = df).fit(cov_type = 'clustered', cluster_entity = True)  
+            pcorr_matrix.loc[var_single,label_pcorr] = stats.pearsonr(partial0.resids, partial1.resids)[0]
+            pr2_matrix.loc[var_single,label_pr2] = 1 - ((1 - partial1.rsquared)/(1 - partial0.rsquared))
+    
     #----------------------------------------------
     # Tests
     '''We test for three things:
@@ -287,9 +312,9 @@ def analysesFDIV(df, var_ls, righthand_x, righthand_ghat, righthand_z, time_dumm
     
     if num_z == 1:
         if var_ls == 'dum_ls':
-            return(res_step1,res_step2,f_test_step1,pvals_ls_endo,[],0)
+            return(res_step1,res_step2,pcorr_matrix,pr2_matrix,f_test_step1,pvals_ls_endo,[],0)
         else:
-            return(res_step1,res_step2,f_test_step1,pvals_ls_endo,[],1)
+            return(res_step1,res_step2,pcorr_matrix,pr2_matrix,f_test_step1,pvals_ls_endo,[],1)
     else:
         sargan_res = []
         
@@ -299,9 +324,9 @@ def analysesFDIV(df, var_ls, righthand_x, righthand_ghat, righthand_z, time_dumm
             sargan_res.append(oir.pval)
         
         if var_ls == 'dum_ls':
-            return(res_step1,res_step2,f_test_step1,pvals_ls_endo,sargan_res,0)
+            return(res_step1,res_step2,pcorr_matrix,pr2_matrix,f_test_step1,pvals_ls_endo,sargan_res,0)
         else:
-            return(res_step1,res_step2,f_test_step1,pvals_ls_endo,sargan_res,1)
+            return(res_step1,res_step2,pcorr_matrix,pr2_matrix,f_test_step1,pvals_ls_endo,sargan_res,1)
 
 #----------------------------------------------
 def tableIVtests(num_models,f_test_step1,pvals_ls_endo,sargan_res = None):
@@ -342,8 +367,8 @@ def scoreFDIVtest(test_table):
 #----------------------------------------------
 
 # Set the righthand side of the formulas used in analysesFDIV
-righthand_x = r'RC7205 + loanratio + roa + depratio + comloanratio + RC2170 + bhc'
-righthand_ghat = r'RC7205_G_hat + loanratio_G_hat + roa_G_hat + depratio_G_hat + comloanratio_G_hat + RC2170_G_hat + bhc_G_hat'
+righthand_x = r'RC7205 + loanratio + roa + depratio + comloanratio + mortratio + consloanratio + loanhhi + RC2170 + bhc'
+righthand_ghat = r'RC7205_G_hat + loanratio_G_hat + roa_G_hat + depratio_G_hat + comloanratio_G_hat + mortratio_G_hat + consloanratio_G_hat + loanhhi_G_hat + RC2170_G_hat + bhc_G_hat'
 
 vars_endo = ['dum_ls','ls_tot_ta'] 
 
@@ -358,6 +383,8 @@ list_dfs = [df_full_fd, df_pre_fd, df_during_fd,df_predodd_fd,df_post_fd]
 # Setup the lists that stores the results from analysesFDIV
 res_step1 = []
 res_step2 = []
+pcorr = []
+pr2 = []
 f_test_step1 = []
 pvals_ls_endo = []
 sargan_res = []
@@ -370,13 +397,15 @@ for i in range(len(vars_endo)):
                      
         # Run the model
         for z in vars_z:
-            res_step1_load,res_step2_load,f_test_step1_load,pvals_ls_endo_load,\
+            res_step1_load,res_step2_load,pcorr_load,pr2_load,f_test_step1_load,pvals_ls_endo_load,\
             sargan_res_load, endo_var_load =\
             analysesFDIV(data, vars_endo[i], righthand_x, righthand_ghat, z,  time_dummies)
             
             # Save the models
             res_step1.append(res_step1_load)
             res_step2.append(res_step2_load)
+            pcorr.append(pcorr_load)
+            pr2.append(pr2_load)
             f_test_step1.append(f_test_step1_load)
             pvals_ls_endo.append(pvals_ls_endo_load)
             sargan_res.append(sargan_res_load)
@@ -428,8 +457,32 @@ sum_s2_dumls = []
 sum_s2_lstotta = [] 
 for vec_dum, vec_ls in zip(res_s2_dumls_shuffled,res_s2_lstotta_shuffled):
     sum_s2_dumls.append(summary_col(vec_dum, show = 'se', regressor_order = reg_order_step2))    
-    sum_s2_lstotta.append(summary_col(vec_ls, show = 'se', regressor_order = reg_order_step2)) 
+    sum_s2_lstotta.append(summary_col(vec_ls, show = 'se', regressor_order = reg_order_step2))
     
+# Partial Correlation and r2
+pcorr_dumls, pcorr_lstotta = split_list(pcorr)
+pr2_dumls, pr2_lstotta = split_list(pr2)
+
+pcorr_dumls_shuffled = []
+pcorr_lstotta_shuffled = []
+pr2_dumls_shuffled = []
+pr2_lstotta_shuffled = []
+first_loop = True
+
+for d in range(len(list_dfs)):
+    for i in range(pcorr_dumls[d].shape[1]):
+        if first_loop:
+            pcorr_dumls_shuffled.append([np.array(pcorr_dumls[d].iloc[:,i])])
+            pcorr_lstotta_shuffled.append([np.array(pcorr_lstotta[d].iloc[:,i])])
+            pr2_dumls_shuffled.append([np.array(pr2_dumls[d].iloc[:,i])])
+            pr2_lstotta_shuffled.append([np.array(pr2_lstotta[d].iloc[:,i])])
+        else:
+            pcorr_dumls_shuffled[i].append(np.array(pcorr_dumls[d].iloc[:,i]))
+            pcorr_lstotta_shuffled[i].append(np.array(pcorr_lstotta[d].iloc[:,i]))
+            pr2_dumls_shuffled[i].append(np.array(pr2_dumls[d].iloc[:,i]))
+            pr2_lstotta_shuffled[i].append(np.array(pr2_lstotta[d].iloc[:,i]))
+    first_loop = False
+  
 #----------------------------------------------
 # Make test vectors to be appended to the tables
 ## Weak instruments - Step 1
@@ -476,6 +529,12 @@ dict_var_names = {'':'',
                  'perc_full_branch':'Full Branches (in %)',
                  'unique_states':'Num States Active',
                  'UNIT':'Unit Bank Indicator',
+                 'nim':'Net Interst Margin',
+                 'nnim':'Net Non-Interest Margin',
+                 'mortratio':'Mortgage Ratio',
+                 'consloanratio':'Consumer Loan Ratio',
+                 'agriloanratio':'Agri Loan Ratio',
+                 'loanhhi':'Loan HHI',
                  'No. Observations:':'N',
                  'R-squared:':'$R^2$',
                  'F-test Weak Instruments':'F-test Weak Instruments',
@@ -488,7 +547,7 @@ vars_x = pd.Series(righthand_x.split(' + ')).unique()
 
 dict_ghat = {}
 
-for key, name in zip(vars_ghat, dict_var_names):
+for key, name in zip(vars_ghat, vars_x):
     dict_ghat[key] = '$\hat{{G}}$({})'.format(dict_var_names[name]) 
     
 dict_var_names.update(dict_ghat) 
@@ -585,6 +644,23 @@ for i in range(3):
         count += 1
 
 #----------------------------------------------
+# Partial Correlations
+#----------------------------------------------
+
+var_names_pcorr = [dict_var_names[key] for key in pcorr_dumls[0].index]
+
+pcorr_dumls_df = []
+pcorr_lstotta_df = []
+pr2_dumls_df = []
+pr2_lstotta_df = []
+
+for i in range(pcorr_dumls[0].shape[1]):
+    pcorr_dumls_df.append(pd.DataFrame(pcorr_dumls_shuffled[i], index = columns, columns = var_names_pcorr).T)
+    pcorr_lstotta_df.append(pd.DataFrame(pcorr_lstotta_shuffled[i], index = columns, columns = var_names_pcorr).T)
+    pr2_dumls_df.append(pd.DataFrame(pr2_dumls_shuffled[i], index = columns, columns = var_names_pcorr).T)
+    pr2_lstotta_df.append(pd.DataFrame(pr2_lstotta_shuffled[i], index = columns, columns = var_names_pcorr).T)
+
+#----------------------------------------------
 # Save the tables 
 #----------------------------------------------
 # Prelims
@@ -593,6 +669,8 @@ sheets_step2 = ['Charge-offs','Allowance','Provisions',\
 
 # Save the tables
 path = r'Results\FD_IV_v4_log.xlsx'
+path_pcorr = r'Results\partial_corr_log.xlsx'
+path_pr2 = r'Results\partial_pr2_log.xlsx'
 
 with pd.ExcelWriter(path) as writer:
     # Save dumls
@@ -605,5 +683,19 @@ with pd.ExcelWriter(path) as writer:
     table_step1_lstotta.to_excel(writer, sheet_name = 'Step 1 LSTA') 
     
     for i in range(6):
-        list_tables_step2_lstotta[i].to_excel(writer, sheet_name = 'LSTA - {}'.format(sheets_step2[i]))    
-    
+        list_tables_step2_lstotta[i].to_excel(writer, sheet_name = 'LSTA - {}'.format(sheets_step2[i])) 
+        
+# Save the pcorr
+with pd.ExcelWriter(path_pcorr) as writer:   
+    for i in range(3):
+        pcorr_dumls_df[i].to_excel(writer, sheet_name = 'Dumls - {}'.format(sheets_step2[i]))      
+        
+    for i in range(3):
+        pcorr_lstotta_df[i].to_excel(writer, sheet_name = 'LSTA - {}'.format(sheets_step2[i])) 
+        
+with pd.ExcelWriter(path_pr2) as writer:   
+    for i in range(3):
+        pr2_dumls_df[i].to_excel(writer, sheet_name = 'Dumls - {}'.format(sheets_step2[i]))      
+        
+    for i in range(3):
+        pr2_lstotta_df[i].to_excel(writer, sheet_name = 'LSTA - {}'.format(sheets_step2[i]))   

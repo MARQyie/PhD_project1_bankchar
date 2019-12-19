@@ -47,10 +47,11 @@ df['dum_ls'] = np.exp((df.ls_tot > 0) * 1) - 1 #will be taken the log of later
 
 ## Take a subset of variables (only the ones needed)
 vars_needed = ['distance','provratio','net_coffratio_tot_ta',\
-               'allowratio_tot_ta','ls_tot_ta','dum_ls',\
+               'allowratio_tot_ta','ls_tot_ta','dum_ls','size',\
                'RC7205','loanratio','roa','depratio','comloanratio','RC2170',\
                'num_branch', 'bhc', 'RIAD4150', 'perc_limited_branch',\
-               'unique_states']
+               'unique_states','mortratio','consloanratio',\
+               'agriloanratio','loanhhi','nim','nnim','roa_alt']
 df_full = df[vars_needed]
 
 #---------------------------------------------------
@@ -75,7 +76,8 @@ df_predodd_fd = df_full_fd[df_full_fd.index.get_level_values(1) < pd.Timestamp(2
 # Create the first difference df
 ## First select the variables
 ## Make dict that contains all variables and names
-dict_var_names = {'distance':'Max Distance Branches',
+dict_var_names = {'':'',
+                  'distance':'Max Distance Branches',
                  'provratio':'Loan Loss Provisions',
                  'rwata':'RWA/TA',
                  'net_coffratio_tot_ta':'Loan Charge-offs',
@@ -86,6 +88,7 @@ dict_var_names = {'distance':'Max Distance Branches',
                  'RC7205':'Regulatory Capital Ratio',
                  'loanratio':'Loan Ratio',
                  'roa':'ROA',
+                 'roa_alt':'ROA Alt.',
                  'depratio':'Deposit Ratio',
                  'comloanratio':'Commercial Loan Ratio',
                  'RC2170':'Total Assets',
@@ -95,7 +98,18 @@ dict_var_names = {'distance':'Max Distance Branches',
                  'perc_limited_branch':'Limited Branches (in %)',
                  'perc_full_branch':'Full Branches (in %)',
                  'unique_states':'Num States Active',
-                 'UNIT':'Unit Bank Indicator'}
+                 'UNIT':'Unit Bank Indicator',
+                 'nim':'Net Interst Margin',
+                 'nnim':'Net Non-Interest Margin',
+                 'mortratio':'Mortgage Ratio',
+                 'consloanratio':'Consumer Loan Ratio',
+                 'agriloanratio':'Agri Loan Ratio',
+                 'loanhhi':'Loan HHI',
+                 'No. Observations:':'N',
+                 'R-squared:':'$R^2$',
+                 'F-test Weak Instruments':'F-test Weak Instruments',
+                 'DWH-test':'DWH-test',
+                 'P-val Sargan-test':'P-val Sargan-test'}
 
 labels = [dict_var_names[var] for var in vars_needed]
 
@@ -120,7 +134,7 @@ paths = ['Corr_matrix_full_sample.png','Corr_matrix_precrisis_sample.png',\
 
 ## Loop over all plots
 for matrix, title, path in zip(corr_matrices, titles, paths):
-    fig, ax = plt.subplots(figsize=(20, 16))
+    fig, ax = plt.subplots(figsize=(30, 24))
     plt.title(title, fontsize=20)
     ax = sns.heatmap(
         matrix, 
@@ -145,4 +159,52 @@ for matrix, title, path in zip(corr_matrices, titles, paths):
     plt.close(fig)
     plt.clf()
 
-        
+#-------------------------------------------------
+# Make a smaller matrix with only the variables used in the model
+vars_subset = ['net_coffratio_tot_ta','allowratio_tot_ta','provratio','dum_ls','ls_tot_ta',\
+               'RC7205','loanratio','roa','roa_alt','nim','nnim','depratio','comloanratio','RC2170','bhc',\
+               'mortratio','consloanratio','loanhhi','RIAD4150', 'perc_limited_branch'] 
+
+# Correlation Matrices
+corr_matrix_full_sub = df_full_fd[vars_subset].corr(method = 'spearman')
+corr_matrix_precrisis_sub = df_pre_fd[vars_subset].corr(method = 'spearman')
+corr_matrix_crisis_sub = df_during_fd[vars_subset].corr(method = 'spearman')
+corr_matrix_postcrisis_sub = df_post_fd[vars_subset].corr(method = 'spearman')
+corr_matrix_predodd_sub = df_predodd_fd[vars_subset].corr(method = 'spearman')
+
+# Plot
+## Setup everything for loop
+corr_matrices_sub = [corr_matrix_full_sub,corr_matrix_precrisis_sub,corr_matrix_crisis_sub,\
+                 corr_matrix_postcrisis_sub,corr_matrix_predodd_sub]
+paths_sub = ['Corr_matrix_full_sample_sub.png','Corr_matrix_precrisis_sample_sub.png',\
+         'Corr_matrix_crisis_sample_sub.png','Corr_matrix_postcrisis_sample_sub.png',\
+         'Corr_matrix_predodd_sample_sub.png']
+labels_sub = [dict_var_names[var] for var in vars_subset]
+
+## Loop over all plots
+for matrix, title, path in zip(corr_matrices_sub, titles, paths_sub):
+    fig, ax = plt.subplots(figsize=(20, 16))
+    plt.title(title, fontsize=20)
+    ax = sns.heatmap(
+        matrix, 
+        vmin=-1, vmax=1, center=0,
+        cmap=sns.diverging_palette(20, 220, n=200),
+        annot = True
+    )
+    ax.set_xticklabels(
+        labels_sub,
+        rotation=45,
+        horizontalalignment='right',
+        fontsize = 16
+    )
+    ax.set_yticklabels(
+        labels_sub,
+        fontsize = 16
+    );
+    
+    plt.tight_layout()
+    fig.savefig(r'Figures\\' + path)     
+    
+    plt.close(fig)
+    plt.clf()
+     

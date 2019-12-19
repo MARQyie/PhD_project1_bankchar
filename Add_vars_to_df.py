@@ -93,13 +93,13 @@ drop_banks = np.array(df.IDRSSD.value_counts()[df.IDRSSD.value_counts() <= 3].in
 df = df[~df.IDRSSD.isin(drop_banks)]
 
 #------------------------------------------
-# Drop missings in Total assets, liquidity, loans, deposits, capital and income, RWA
+# Drop missings in Total assets, loans, deposits, capital and income, RWA
 ## Sum cash and securities, label as liquid assets
 df['liqass'] = df[['RC0071','RC0081','RC1773','RC1754']].sum(axis = 1, skipna = True) 
 #RCON1350 (splits in BB987 + B989)
 
 ## Drop the NaNs
-nandrop_cols = ['RC2170','RC2122','RC2200','RC3210','RIAD4340','RCG641','liqass']
+nandrop_cols = ['RC2170','RC2122','RC2200','RC3210','RIAD4340','RC7205']
 df.dropna(subset = nandrop_cols , inplace = True)
 
 #------------------------------------------
@@ -135,7 +135,7 @@ df['liqratio'] = (df.liqass / df.RC2170).replace(np.inf, 0)
 df['traderatio'] = (df.RC3545 / df.RC2170).replace(np.inf, 0)
 
 ## Loan ratio
-df['loanratio'] = (df.RC2122 / df.RC2170).replace(np.inf, 0)
+df['loanratio'] = ((df.RC2122) / df.RC2170).replace(np.inf, 0)
 
 ## Loans-to-deposits
 df['ltdratio'] = (df.RC2122 / df.RC2200).replace(np.inf, 0)
@@ -174,16 +174,23 @@ df['dloan'] = df.groupby('IDRSSD').RC2122.pct_change()
 df['dass'] = df.groupby('IDRSSD').RC2170.pct_change()
 
 ## Mortgages to loans
-df['mortratio'] = (df[['RCON1415','RCONF158','RCONF159','RC1420','RC1460','RC1797']].sum(axis = 1).divide(df.RC2122)).replace(np.inf, 0)
+df['mortratio'] = (df[['RCON1415','RCONF158','RCONF159','RC1420','RC1460','RC1797',\
+  'RC5367','RC5368','RCON1480','RCF160','RCF161']].sum(axis = 1).divide(df.RC2122)).replace(np.inf, 0)
 
 ## Home Equity Lines to loans
 df['HEL'] = ((df.RCON3814) / df.RC2122).replace(np.inf, 0)
 
+## Consumer loan ratio
+df['consloanratio'] = (df[['RCB538','RCB539','RC2011','RCK137','RCK207']].sum(axis = 1).divide(df.RC2122)).replace(np.inf, 0)
+
 ## Commercial loan ratio
-df['comloanratio'] = (df.RCON1766 / df.RC2170).replace(np.inf, 0)
+df['comloanratio'] = (df['RCON1766'] / df.RC2122).replace(np.inf, 0)
 
 ## Agricultural loan ratio
-df['agriloanratio'] = (df.RC1590 / df.RC2170).replace(np.inf, 0)
+df['agriloanratio'] = (df.RC1590 / df.RC2122).replace(np.inf, 0)
+
+## Normalized HHI loan
+df['loanhhi'] = df[['mortratio','consloanratio','comloanratio','agriloanratio']].pow(2).sum(axis = 1) - (1 / (4 - 1))
 
 ## RWA over TA
 df['rwata'] = (df.RCG641 / df.RC2170).replace(np.inf, 0)
@@ -236,9 +243,13 @@ df['roe'] = (df.RIAD4340 / df.RC3210).replace(np.inf, 0)
 
 ## ROA 
 df['roa'] = (df.RIAD4340 / df.RC2170).replace(np.inf, 0)
+df['roa_alt'] = (df.RIAD4301 / df.RC2170).replace(np.inf, 0)
 
 ## Net interest margin
 df['nim'] = (df.RIAD4074 / df.RC2170).replace(np.inf, 0)
+
+## Net non-interest margin
+df['nnim'] = ((df[['RIAD4079','RIAD3521','RIAD3196']].sum(axis = 1) - df.RIAD4093)/ df.RC2170).replace(np.inf, 0)
 
 ## Cost-to-income margin
 df['costinc'] = (df.RIAD4093 / (df.RIAD4074 + df.RIAD4079)).replace(np.inf, 0)

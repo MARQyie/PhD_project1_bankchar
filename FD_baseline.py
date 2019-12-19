@@ -48,7 +48,8 @@ vars_needed = ['distance','provratio','rwata','net_coffratio_tot_ta',\
                'allowratio_tot_ta','ls_tot_ta','dum_ls','size',\
                'RC7205','loanratio','roa','depratio','comloanratio','RC2170',\
                'num_branch', 'bhc', 'RIAD4150', 'perc_limited_branch',\
-               'perc_full_branch', 'unique_states','UNIT','nim']
+               'perc_full_branch', 'unique_states','UNIT','nim','nnim',\
+               'mortratio','consloanratio','agriloanratio','loanhhi']
 df_full = df[vars_needed]
 
 #---------------------------------------------------
@@ -174,9 +175,9 @@ def analysesFD(df, var_ls, righthand_x, time_dummies):
 
 # Set the righthand side of the formulas
 if log:
-    righthand_x = r'RC7205 + loanratio + nim + depratio + comloanratio + RC2170 + bhc'
+    righthand_x = r'RC7205 + loanratio + depratio + roa + comloanratio + mortratio + consloanratio + loanhhi + RC2170 + bhc'
 else:
-    righthand_x = r'RC7205 + loanratio + nim + depratio + comloanratio + size + bhc'
+    righthand_x = r'RC7205 + loanratio + depratio + roa + comloanratio + mortratio + consloanratio + loanhhi + size + bhc'
 
 time_dummies = ' + '.join(col_dummy[1:])
    
@@ -263,6 +264,11 @@ dict_var_names = {'':'',
                  'loanratio':'Loan Ratio',
                  'roa':'ROA',
                  'nim':'Net Interest Margin',
+                 'nnim':'Net Non-Interest Margin',
+                 'mortratio':'Mortgage Ratio',
+                 'consloanratio':'Consumer Loan Ratio',
+                 'agriloanratio':'Agri Loan Ratio',
+                 'loanhhi':'Loan HHI',
                  'depratio':'Deposit Ratio',
                  'comloanratio':'Commercial Loan Ratio',
                  'RC2170':'Total Assets',

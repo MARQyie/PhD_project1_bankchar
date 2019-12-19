@@ -97,16 +97,17 @@ list_multicolumns = [('Total Sample', 'Mean'), ('Total Sample', 'SD'),\
 # Table 1: Variables Call Reports
 ## Set labels and variables
 vars_call = ['RC2170bln', 'tot_size_exp', 'RC2122bln', 'ls_tot_ta','dum_ls','net_coffratio_tot_ta',\
-             'allowratio_tot_ta','provratio','RC7205','loanratio','roa','nim','depratio',\
-             'comloanratio','bhc','RIAD4150']
+             'allowratio_tot_ta','provratio','RC7205','loanratio','roa','nim','nnim','depratio',\
+             'comloanratio','mortratio','consloanratio','loanhhi','bhc','RIAD4150']
 
 labels_call = ['Total Assets (\$ bln)','Total Assets (On + Off; \$ bln)', 'Total Loans (\$ bln)', 'Total Loan Sales-to-TA',\
                'Dummy Loan Sales','Total Net Charge-offs-to-TA','Total Allowances-to-TA', 'Provision Ratio',\
                'Regulatory Capital Ratio', 'Loans-to-TA','Return on Assets',\
-               'Net Interest Margin','Deposit Ratio','Commercial Loan Ratio','BHC Indicator','Number of Employees']
+               'Net Interest Margin','Net Non-Interest Margin','Deposit Ratio','Commercial Loan Ratio',\
+               'Mortgage Ratio','Consumer Loan Ratio','Loan HHI','BHC Indicator','Number of Employees']
 
 vars_sod = ['num_branch','distance','perc_limited_branch','perc_full_branch','unique_states','UNIT']
-labels_sod = ['Number of Branches','Maximum Distance Between Branches','Percentage Limited Service',\
+labels_sod = ['Number of Branches','Maximum Distance Branches','Percentage Limited Service',\
               'Percentage Full Service','Number of States Active', 'Unit Indicator']
 
 ## Make table
