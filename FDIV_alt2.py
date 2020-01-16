@@ -30,7 +30,7 @@ from scipy import stats
     Step 1: Estimate a linear model of LS on X and Z, where X are the exogenous
     variables and Z are the instruments. Obtain the fitted probabilities G()
     
-    Step 2: Do a OLS of CR on 1, G_hat, X
+    Step 2: Do a OLS of CR on 1, G_hat, X, G_hat(X-X_bar)
     
     Both steps are in first differences and include time dummies to account for
     any time fixed effects.
@@ -81,7 +81,7 @@ vars_needed = ['distance','provratio','net_coffratio_tot_ta',\
                'RC7205','loanratio','roa','depratio','comloanratio','RC2170',\
                'num_branch', 'bhc', 'RIAD4150', 'perc_limited_branch',\
                'unique_states','mortratio','consloanratio',\
-               'agriloanratio','loanhhi','costinc']
+               'agriloanratio','loanhhi','nim','nnim','costinc']
 df_full = df[vars_needed]
 
 #---------------------------------------------------
@@ -92,6 +92,13 @@ df_full['bhc'] = np.exp(df_full.bhc) - 1
 
 ## Take logs of the df
 df_full = df_full.transform(lambda df: np.log(1 + df))
+
+## Add the x_xbar to the df
+x_xbar = df_full[['RC7205','loanratio','nim',\
+                  'depratio','comloanratio','RC2170','bhc','mortratio','consloanratio','loanhhi','costinc']].transform(lambda df: df - df.mean())
+df_full[[x + '_xbar' for x in ['RC7205','loanratio',\
+                               'nim','depratio','comloanratio','RC2170','bhc',\
+                               'mortratio','consloanratio','loanhhi','costinc']]] = x_xbar
 
 ## Take the first differences
 df_full_fd = df_full.groupby(df_full.index.get_level_values(0)).transform(lambda df: df.shift(periods = 1) - df).dropna()
@@ -167,7 +174,7 @@ def sargan(resids, x, z, nendog = 1):
 #----------------------------------------------
 '''-----------------------------------------''' 
 
-def analysesFDIV(df, var_ls, righthand_x, righthand_z, time_dummies):
+def analysesFDIV(df, var_ls, righthand_x, righthand_ghat, righthand_z, time_dummies):
     ''' Performs a FDIV linear model. The second stage takes for dependent variables:
         1) Charge-off rates, 2) Loan Loss allowances, 3) RWA/TA 4) Loan loss provisions.
         The method also correct for unobserved heterogeneity (see Wooldridge p.). Only 
@@ -204,7 +211,9 @@ def analysesFDIV(df, var_ls, righthand_x, righthand_z, time_dummies):
     # STEP 1: First Stage
     #----------------------------------------------
     ''' In the first stage we regress the loan sales variable on the x and z variables
-        and the time dummies and calculate the fitted values "G_hat_fd". 
+        and the time dummies and calculate the fitted values "G_hat_fd". We also 
+        calculate "G_hat(x-x_bar)" which serves as correction for unobserved hetero-
+        skedasticity in step 2b.
         
         The summary of the first step is returned
         '''  
@@ -215,6 +224,12 @@ def analysesFDIV(df, var_ls, righthand_x, righthand_z, time_dummies):
     
     df['G_hat_fd'] = res_step1.fitted_values
     
+    #----------------------------------------------
+    # Calculate G_hat_x_xbar for both first stages
+    G_hat_x_xbar_fd = df.loc[:,df.columns.str.contains('_xbar')] * df.G_hat_fd[:, None]
+
+    df[[x + '_G_hat' for x in vars_x]] = G_hat_x_xbar_fd
+  
     #----------------------------------------------
     # Step 2: Second Stage
     #----------------------------------------------
@@ -232,6 +247,12 @@ def analysesFDIV(df, var_ls, righthand_x, righthand_z, time_dummies):
                      fit(cov_type = 'clustered', cluster_entity = True)
         res_step2.append(res_step2a) # append to results list
              
+        # with correction unobserved heterogeneity
+        res_step2b = PanelOLS.from_formula(dep_var + ' ~ ' + righthand_x +\
+                     ' + ' + 'G_hat_fd' + ' + ' + righthand_ghat + ' + ' + time_dummies, data = df).\
+                     fit(cov_type = 'clustered', cluster_entity = True)
+        res_step2.append(res_step2b) # append to results list
+
     #----------------------------------------------
     # Partia Correlation and R-squared Second stage
     #----------------------------------------------
@@ -323,14 +344,14 @@ def tableIVtests(num_models,f_test_step1,pvals_ls_endo,sargan_res = None):
         indicator_tests = [a*b for a,b in zip([(i > 10) * 1 for i in f_test_list],\
                           [(i > 0.05) * 1 for i in sargan_res])]
         index = ['F-test weak instruments','P-val endogenous w','P-val Sargan','Indicator']
-        columns = ['charge_2a','allow_2a','prov_2a']
+        columns = ['charge_2a','charge_2b','allow_2a','allow_2b','prov_2a','prov_2b',]
         
         return(pd.DataFrame([f_test_list,pvals_l_endo_list,sargan_res,indicator_tests],\
                              index = index, columns = columns))
     else:
         indicator_tests = [a for a in [(i < 0.05) * 1 for i in f_test_list]]
         index = ['T-test weak instruments','P-val endogenous w','Indicator']
-        columns = ['charge_2a''allow_2a','prov_2a']
+        columns = ['charge_2a','charge_2b','allow_2a','allow_2b','prov_2a','prov_2b',]
         
         return(pd.DataFrame([f_test_list,pvals_l_endo_list,indicator_tests],\
                              index = index, columns = columns))        
@@ -348,7 +369,8 @@ def scoreFDIVtest(test_table):
 #----------------------------------------------
 
 # Set the righthand side of the formulas used in analysesFDIV
-righthand_x = r'RC7205 + loanratio + roa + depratio + comloanratio + mortratio + consloanratio + loanhhi + costinc + RC2170 + bhc'
+righthand_x = r'RC7205 + loanratio + nim + depratio + comloanratio + mortratio + consloanratio + loanhhi + costinc + RC2170 + bhc'
+righthand_ghat = r'RC7205_G_hat + loanratio_G_hat + nim_G_hat + depratio_G_hat + comloanratio_G_hat + mortratio_G_hat + consloanratio_G_hat + loanhhi_G_hat + costinc_G_hat + RC2170_G_hat + bhc_G_hat'
 
 vars_endo = ['dum_ls','ls_tot_ta'] 
 
@@ -379,7 +401,7 @@ for i in range(len(vars_endo)):
         for z in vars_z:
             res_step1_load,res_step2_load,pcorr_load,pr2_load,f_test_step1_load,pvals_ls_endo_load,\
             sargan_res_load, endo_var_load =\
-            analysesFDIV(data, vars_endo[i], righthand_x, z,  time_dummies)
+            analysesFDIV(data, vars_endo[i], righthand_x, righthand_ghat, z,  time_dummies)
             
             # Save the models
             res_step1.append(res_step1_load)
@@ -407,7 +429,7 @@ def split_list(a_list):
 
 ## Determine regression order
 reg_order_step1 = vars_z[0].split(' + ') + righthand_x.split(' + ')
-reg_order_step2 = ['G_hat_fd'] + righthand_x.split(' + ')
+reg_order_step2 = ['G_hat_fd'] + righthand_x.split(' + ') + righthand_ghat.split(' + ')
 
 #----------------------------------------------
 '''CHANGE IN CASE OF MULTIPLE OPTIONS FOR Z'''
@@ -480,8 +502,8 @@ sargan_dumls, sargan_lstotta = split_list(sargan_res)
 
 ### Make lists to append to table 2
 '''NOTE: All uneven items are with hetero correction'''
-sargan_dumls_sort = [[vec[i] for vec in sargan_dumls] for i in range(3)]
-sargan_lstotta_sort = [[vec[i] for vec in sargan_lstotta] for i in range(3)]
+sargan_dumls_sort = [[vec[i] for vec in sargan_dumls] for i in range(6)]
+sargan_lstotta_sort = [[vec[i] for vec in sargan_lstotta] for i in range(6)]
 
 #----------------------------------------------
 # Prelims for making nice tables
@@ -522,6 +544,17 @@ dict_var_names = {'':'',
                  'P-val Sargan-test':'P-val Sargan-test',
                  'costinc':'Cost-to-income'}
 
+### Add the ghat_w variables to the dict
+vars_ghat = pd.Series(righthand_ghat.split(' + ')).unique()
+vars_x = pd.Series(righthand_x.split(' + ')).unique()
+
+dict_ghat = {}
+
+for key, name in zip(vars_ghat, vars_x):
+    dict_ghat[key] = '$\hat{{G}}$({})'.format(dict_var_names[name]) 
+    
+dict_var_names.update(dict_ghat) 
+
 ## Add the time dummies to the dict
 keys_time_dummies = df_full_fd.columns[df_full_fd.columns.str.contains('dum2')]
 values_time_dummies = 'I(t=' + keys_time_dummies.str[3:] + ')'
@@ -533,7 +566,7 @@ for key, name in zip(keys_time_dummies, values_time_dummies):
     
 dict_var_names.update(dict_td) 
 
-columns = ['Full','Pre-Crisis','Crisis','Pre-Dodd-Frank','Post-Dodd-Frank']
+columns = ['Full','Pre-Crisis','Crisis','Pre-Dodd-Frank','Post-Crisis/Dodd-Frank']
 
 #----------------------------------------------
 # Make table for step 1
@@ -570,54 +603,59 @@ table_step1_lstotta.index = [dict_var_names[key] for key in table_step1_lstotta.
 
 list_tables_step2_dumls = []
 list_tables_step2_lstotta = []
+count = 0
 
 for i in range(3):
-
-    ## Change the lower part of the table
-    step2_lower_table_dumls = sum_s2_dumls[i].tables[2].iloc[[1,2],:]
-    step2_lower_table_dumls.loc[-1] = endo_dumls_sort[i]
-    step2_lower_table_dumls.rename({-1:'DWH-test'}, axis = 'index', inplace = True)
-    step2_lower_table_dumls.loc[-1] =  sargan_dumls_sort[i]
-    step2_lower_table_dumls.rename({-1:'P-val Sargan-test'}, axis = 'index', inplace = True)
-    
-    step2_lower_table_lstotta = sum_s2_lstotta[i].tables[2].iloc[[1,2],:]
-    step2_lower_table_lstotta.loc[-1] = endo_lstotta_sort[i]
-    step2_lower_table_lstotta.rename({-1:'DWH-test'}, axis = 'index', inplace = True)
-    step2_lower_table_lstotta.loc[-1] =  sargan_lstotta_sort[i]
-    step2_lower_table_lstotta.rename({-1:'P-val Sargan-test'}, axis = 'index', inplace = True)
-    
-    ### Add to the table
-    sum_s2_dumls[i].tables[2] = step2_lower_table_dumls
-    sum_s2_lstotta[i].tables[2] = step2_lower_table_lstotta
-    
-    ## Make new table
-    table_step2_dumls = pd.concat(sum_s2_dumls[i].tables[1:3])
-    table_step2_lstotta = pd.concat(sum_s2_lstotta[i].tables[1:3])
-    
-    ### Change the columns of the table
-    table_step2_dumls.columns = columns
-    table_step2_lstotta.columns = columns
-    
-    ### Change the index
-    dict_var_names.update({'G_hat_fd':'Dummy Loan Sales'})
-    table_step2_dumls.index = [dict_var_names[key] for key in table_step2_dumls.index]
-    dict_var_names.update({'G_hat_fd':'Loan Sales/TA'})
-    table_step2_lstotta.index = [dict_var_names[key] for key in table_step2_lstotta.index]
+    for j in range(2):
         
-    ## Append to the list
-    list_tables_step2_dumls.append(table_step2_dumls)
-    list_tables_step2_lstotta.append(table_step2_lstotta)
+        ## Change the lower part of the table
+        step2_lower_table_dumls = sum_s2_dumls[count].tables[2].iloc[[1,2],:]
+        step2_lower_table_dumls.loc[-1] = endo_dumls_sort[i]
+        step2_lower_table_dumls.rename({-1:'DWH-test'}, axis = 'index', inplace = True)
+        step2_lower_table_dumls.loc[-1] =  sargan_dumls_sort[count]
+        step2_lower_table_dumls.rename({-1:'P-val Sargan-test'}, axis = 'index', inplace = True)
+        
+        step2_lower_table_lstotta = sum_s2_lstotta[count].tables[2].iloc[[1,2],:]
+        step2_lower_table_lstotta.loc[-1] = endo_lstotta_sort[i]
+        step2_lower_table_lstotta.rename({-1:'DWH-test'}, axis = 'index', inplace = True)
+        step2_lower_table_lstotta.loc[-1] =  sargan_lstotta_sort[count]
+        step2_lower_table_lstotta.rename({-1:'P-val Sargan-test'}, axis = 'index', inplace = True)
+        
+        ### Add to the table
+        sum_s2_dumls[count].tables[2] = step2_lower_table_dumls
+        sum_s2_lstotta[count].tables[2] = step2_lower_table_lstotta
+        
+        ## Make new table
+        table_step2_dumls = pd.concat(sum_s2_dumls[count].tables[1:3])
+        table_step2_lstotta = pd.concat(sum_s2_lstotta[count].tables[1:3])
+        
+        ### Change the columns of the table
+        table_step2_dumls.columns = columns
+        table_step2_lstotta.columns = columns
+        
+        ### Change the index
+        dict_var_names.update({'G_hat_fd':'Dummy Loan Sales'})
+        table_step2_dumls.index = [dict_var_names[key] for key in table_step2_dumls.index]
+        dict_var_names.update({'G_hat_fd':'Loan Sales/TA'})
+        table_step2_lstotta.index = [dict_var_names[key] for key in table_step2_lstotta.index]
+            
+        ## Append to the list
+        list_tables_step2_dumls.append(table_step2_dumls)
+        list_tables_step2_lstotta.append(table_step2_lstotta)
 
+        ## Add one to count
+        count += 1
+        
 # For one table for chargeoffs and allowance
 ## Make a list for the columns 
 columns_one_table = [('Loan Charge-offs','Full'),('Loan Charge-offs','Pre-Dodd-Frank'),('Loan Charge-offs','Post-Dodd-Frank'),\
                      ('Loan Loss Allowances','Full'),('Loan Loss Allowances','Pre-Dodd-Frank'),('Loan Loss Allowances','Post-Dodd-Frank')]    
 
 ## Make the tables and give the correct columns    
-one_table_dumls = pd.concat([list_tables_step2_dumls[0].iloc[:,[0,3,4]], list_tables_step2_dumls[1].iloc[:,[0,3,4]]], axis = 1)
+one_table_dumls = pd.concat([list_tables_step2_dumls[0].iloc[:,[0,3,4]], list_tables_step2_dumls[4].iloc[:,[0,3,4]]], axis = 1)
 one_table_dumls.columns = pd.MultiIndex.from_tuples(columns_one_table)
 
-one_table_lstotta = pd.concat([list_tables_step2_lstotta[0].iloc[:,[0,3,4]], list_tables_step2_lstotta[1].iloc[:,[0,3,4]]], axis = 1)
+one_table_lstotta = pd.concat([list_tables_step2_lstotta[0].iloc[:,[0,3,4]], list_tables_step2_lstotta[4].iloc[:,[0,3,4]]], axis = 1)
 one_table_lstotta.columns = pd.MultiIndex.from_tuples(columns_one_table)
 
 #----------------------------------------------
@@ -646,22 +684,22 @@ sheets_step2 = ['Charge-offs','Allowance','Provisions',\
                 'Charge-offs_corr','Allowance_corr','Provisions_corr']
 
 # Save the tables
-path = r'Results\FD_IV_v4_log.xlsx'
-path_pcorr = r'Results\partial_corr_log.xlsx'
-path_pr2 = r'Results\partial_pr2_log.xlsx'
+path = r'Results\FD_IV_v4_log_robust2.xlsx'
+path_pcorr = r'Results\partial_corr_log_robust2.xlsx'
+path_pr2 = r'Results\partial_pr2_log_robust2.xlsx'
 
 with pd.ExcelWriter(path) as writer:
     # Save dumls
     table_step1_dumls.to_excel(writer, sheet_name = 'Step 1 Dumls')
 
-    for i in range(3):
+    for i in range(6):
         list_tables_step2_dumls[i].to_excel(writer, sheet_name = 'Dumls - {}'.format(sheets_step2[i]))
     one_table_dumls.to_excel(writer, sheet_name = 'Step 2 Dumls - One Table') 
     
     # Save LS_tot_ta
     table_step1_lstotta.to_excel(writer, sheet_name = 'Step 1 LSTA') 
     
-    for i in range(3):
+    for i in range(6):
         list_tables_step2_lstotta[i].to_excel(writer, sheet_name = 'LSTA - {}'.format(sheets_step2[i]))
     one_table_lstotta.to_excel(writer, sheet_name = 'Step 2 LSTA - One Table')
         

@@ -81,7 +81,7 @@ vars_needed = ['distance','provratio','net_coffratio_tot_ta',\
                'RC7205','loanratio','roa','depratio','comloanratio','RC2170',\
                'num_branch', 'bhc', 'RIAD4150', 'perc_limited_branch',\
                'unique_states','mortratio','consloanratio',\
-               'agriloanratio','loanhhi','nim','nnim']
+               'agriloanratio','loanhhi','nim','nnim','costinc']
 df_full = df[vars_needed]
 
 #---------------------------------------------------
@@ -90,17 +90,15 @@ df_full = df[vars_needed]
 ## Correct dummy and percentage variables for log
 df_full['bhc'] = np.exp(df_full.bhc) - 1
 
-## Alt ROA
-df_full['roa_alt'] = df_full.roa + df_full.provratio
-
 ## Take logs of the df
 df_full = df_full.transform(lambda df: np.log(1 + df))
 
 ## Add the x_xbar to the df
-x_xbar = df_full[['RC7205','loanratio','roa_alt',\
-                  'depratio','comloanratio','RC2170','bhc','mortratio','consloanratio','loanhhi']].transform(lambda df: df - df.mean())
+x_xbar = df_full[['RC7205','loanratio','nim','nnim',\
+                  'depratio','comloanratio','RC2170','bhc','mortratio','consloanratio','loanhhi','costinc']].transform(lambda df: df - df.mean())
 df_full[[x + '_xbar' for x in ['RC7205','loanratio',\
-                               'roa_alt','depratio','comloanratio','RC2170','bhc','mortratio','consloanratio','loanhhi']]] = x_xbar
+                               'nim','nnim','depratio','comloanratio','RC2170','bhc',\
+                               'mortratio','consloanratio','loanhhi','costinc']]] = x_xbar
 
 ## Take the first differences
 df_full_fd = df_full.groupby(df_full.index.get_level_values(0)).transform(lambda df: df.shift(periods = 1) - df).dropna()
@@ -207,7 +205,7 @@ def analysesFDIV(df, var_ls, righthand_x, righthand_ghat, righthand_z, time_dumm
     rank_full = np.linalg.matrix_rank(df[vars_x + vars_z + time_dummies.split(' + ')]) 
     
     if rank_full != len(vars_x + vars_z + time_dummies.split(' + ')):
-        return([],[],[],[],[],[])
+        return([],[],[],[],[],[],[])
     
     #----------------------------------------------
     # STEP 1: First Stage
@@ -251,30 +249,32 @@ def analysesFDIV(df, var_ls, righthand_x, righthand_ghat, righthand_z, time_dumm
              
         # with correction unobserved heterogeneity
         res_step2b = PanelOLS.from_formula(dep_var + ' ~ ' + righthand_x +\
-                     ' + ' + 'G_hat_fd' + '+' + righthand_ghat + ' + ' + time_dummies, data = df).\
+                     ' + ' + 'G_hat_fd' + ' + ' + righthand_ghat + ' + ' + time_dummies, data = df).\
                      fit(cov_type = 'clustered', cluster_entity = True)
         res_step2.append(res_step2b) # append to results list
 
     #----------------------------------------------
-    # Partial R-squared Second stage
+    # Partia Correlation and R-squared Second stage
     #----------------------------------------------
-    ''' We calculate the partial rsquared of all control variables, we control for
+    ''' We calculate the partial correlation and rsquared of all control variables, we control for
         the loan sale variable and the time dummies. Only for step 2a.
         '''
-    pcorr_matrix = pd.DataFrame(index = vars_x, columns = ['partial_corr_{}'.format(i) for i in ['coff','allow','prov']])   
-    pr2_matrix = pd.DataFrame(index = vars_x, columns = ['partial_r2_{}'.format(i) for i in ['coff','allow','prov']])
+        
+    vars_partial = [var_ls] + vars_x    
+    pcorr_matrix = pd.DataFrame(index = vars_partial, columns = ['partial_corr_{}'.format(i) for i in ['coff','allow','prov']])   
+    pr2_matrix = pd.DataFrame(index = vars_partial, columns = ['partial_r2_{}'.format(i) for i in ['coff','allow','prov']])
     
     partial0 = PanelOLS.from_formula(dep_var + ' ~ ' + '1' + ' + ' +  'G_hat_fd' +\
                                             ' + ' + time_dummies, data = df).\
                      fit(cov_type = 'clustered', cluster_entity = True)
     
     for dep_var, label_pcorr,label_pr2 in zip(dep_var_step2,pcorr_matrix.columns.tolist(),pr2_matrix.columns.tolist()):                 
-        for var_single in vars_x:      
+        for var_single in vars_partial:      
             partial1 = PanelOLS.from_formula(dep_var + ' ~ ' + '1' + ' + '  + var_single + ' + ' + 'G_hat_fd' +\
                 ' + ' + time_dummies, data = df).fit(cov_type = 'clustered', cluster_entity = True)  
             pcorr_matrix.loc[var_single,label_pcorr] = stats.pearsonr(partial0.resids, partial1.resids)[0]
             pr2_matrix.loc[var_single,label_pr2] = 1 - ((1 - partial1.rsquared)/(1 - partial0.rsquared))
-            
+    
     #----------------------------------------------
     # Tests
     '''We test for three things:
@@ -369,8 +369,8 @@ def scoreFDIVtest(test_table):
 #----------------------------------------------
 
 # Set the righthand side of the formulas used in analysesFDIV
-righthand_x = r'RC7205 + loanratio + roa_alt + depratio + comloanratio + mortratio + consloanratio + loanhhi + RC2170 + bhc'
-righthand_ghat = r'RC7205_G_hat + loanratio_G_hat + roa_alt_G_hat + depratio_G_hat + comloanratio_G_hat + mortratio_G_hat + consloanratio_G_hat + loanhhi_G_hat + RC2170_G_hat + bhc_G_hat'    
+righthand_x = r'RC7205 + loanratio + nim + nnim + depratio + comloanratio + mortratio + consloanratio + loanhhi + costinc + RC2170 + bhc'
+righthand_ghat = r'RC7205_G_hat + loanratio_G_hat + nim_G_hat + nnim_G_hat + depratio_G_hat + comloanratio_G_hat + mortratio_G_hat + consloanratio_G_hat + loanhhi_G_hat + costinc_G_hat + RC2170_G_hat + bhc_G_hat'
 
 vars_endo = ['dum_ls','ls_tot_ta'] 
 
@@ -392,7 +392,6 @@ pvals_ls_endo = []
 sargan_res = []
 list_endo_vars = []
 
-
 for i in range(len(vars_endo)):
     for data in list_dfs:
         # First set the time dummies (depends on the subset which ones to take)
@@ -413,7 +412,7 @@ for i in range(len(vars_endo)):
             pvals_ls_endo.append(pvals_ls_endo_load)
             sargan_res.append(sargan_res_load)
             list_endo_vars.append(endo_var_load)
-            
+
 #----------------------------------------------
 # Set things up for nice tables
 #----------------------------------------------
@@ -460,8 +459,8 @@ sum_s2_dumls = []
 sum_s2_lstotta = [] 
 for vec_dum, vec_ls in zip(res_s2_dumls_shuffled,res_s2_lstotta_shuffled):
     sum_s2_dumls.append(summary_col(vec_dum, show = 'se', regressor_order = reg_order_step2))    
-    sum_s2_lstotta.append(summary_col(vec_ls, show = 'se', regressor_order = reg_order_step2)) 
-
+    sum_s2_lstotta.append(summary_col(vec_ls, show = 'se', regressor_order = reg_order_step2))
+    
 # Partial Correlation and r2
 pcorr_dumls, pcorr_lstotta = split_list(pcorr)
 pr2_dumls, pr2_lstotta = split_list(pr2)
@@ -485,7 +484,7 @@ for d in range(len(list_dfs)):
             pr2_dumls_shuffled[i].append(np.array(pr2_dumls[d].iloc[:,i]))
             pr2_lstotta_shuffled[i].append(np.array(pr2_lstotta[d].iloc[:,i]))
     first_loop = False
-      
+  
 #----------------------------------------------
 # Make test vectors to be appended to the tables
 ## Weak instruments - Step 1
@@ -522,7 +521,6 @@ dict_var_names = {'':'',
                  'RC7205':'Regulatory Capital Ratio',
                  'loanratio':'Loan Ratio',
                  'roa':'ROA',
-                 'roa_alt':'ROA Alt.',
                  'depratio':'Deposit Ratio',
                  'comloanratio':'Commercial Loan Ratio',
                  'RC2170':'Total Assets',
@@ -543,7 +541,8 @@ dict_var_names = {'':'',
                  'R-squared:':'$R^2$',
                  'F-test Weak Instruments':'F-test Weak Instruments',
                  'DWH-test':'DWH-test',
-                 'P-val Sargan-test':'P-val Sargan-test'}
+                 'P-val Sargan-test':'P-val Sargan-test',
+                 'costinc':'Cost-to-income'}
 
 ### Add the ghat_w variables to the dict
 vars_ghat = pd.Series(righthand_ghat.split(' + ')).unique()
@@ -646,12 +645,25 @@ for i in range(3):
 
         ## Add one to count
         count += 1
+        
+# For one table for chargeoffs and allowance
+## Make a list for the columns 
+columns_one_table = [('Loan Charge-offs','Full'),('Loan Charge-offs','Pre-Dodd-Frank'),('Loan Charge-offs','Post-Dodd-Frank'),\
+                     ('Loan Loss Allowances','Full'),('Loan Loss Allowances','Pre-Dodd-Frank'),('Loan Loss Allowances','Post-Dodd-Frank')]    
+
+## Make the tables and give the correct columns    
+one_table_dumls = pd.concat([list_tables_step2_dumls[0].iloc[:,[0,3,4]], list_tables_step2_dumls[4].iloc[:,[0,3,4]]], axis = 1)
+one_table_dumls.columns = pd.MultiIndex.from_tuples(columns_one_table)
+
+one_table_lstotta = pd.concat([list_tables_step2_lstotta[0].iloc[:,[0,3,4]], list_tables_step2_lstotta[4].iloc[:,[0,3,4]]], axis = 1)
+one_table_lstotta.columns = pd.MultiIndex.from_tuples(columns_one_table)
 
 #----------------------------------------------
 # Partial Correlations
 #----------------------------------------------
 
-var_names_pcorr = [dict_var_names[key] for key in pcorr_dumls[0].index]
+var_names_pcorr_dumls = [dict_var_names[key] for key in pcorr_dumls[0].index]
+var_names_pcorr_lstotta = [dict_var_names[key] for key in pcorr_lstotta[0].index]
 
 pcorr_dumls_df = []
 pcorr_lstotta_df = []
@@ -659,10 +671,10 @@ pr2_dumls_df = []
 pr2_lstotta_df = []
 
 for i in range(pcorr_dumls[0].shape[1]):
-    pcorr_dumls_df.append(pd.DataFrame(pcorr_dumls_shuffled[i], index = columns, columns = var_names_pcorr).T)
-    pcorr_lstotta_df.append(pd.DataFrame(pcorr_lstotta_shuffled[i], index = columns, columns = var_names_pcorr).T)
-    pr2_dumls_df.append(pd.DataFrame(pr2_dumls_shuffled[i], index = columns, columns = var_names_pcorr).T)
-    pr2_lstotta_df.append(pd.DataFrame(pr2_lstotta_shuffled[i], index = columns, columns = var_names_pcorr).T)
+    pcorr_dumls_df.append(pd.DataFrame(pcorr_dumls_shuffled[i], index = columns, columns = var_names_pcorr_dumls).T)
+    pcorr_lstotta_df.append(pd.DataFrame(pcorr_lstotta_shuffled[i], index = columns, columns = var_names_pcorr_lstotta).T)
+    pr2_dumls_df.append(pd.DataFrame(pr2_dumls_shuffled[i], index = columns, columns = var_names_pcorr_dumls).T)
+    pr2_lstotta_df.append(pd.DataFrame(pr2_lstotta_shuffled[i], index = columns, columns = var_names_pcorr_lstotta).T)
 
 #----------------------------------------------
 # Save the tables 
@@ -672,24 +684,25 @@ sheets_step2 = ['Charge-offs','Allowance','Provisions',\
                 'Charge-offs_corr','Allowance_corr','Provisions_corr']
 
 # Save the tables
-path = r'Results\FD_IV_alt4_log.xlsx'
-path_pcorr = r'Results\partial_corr_alt4_log.xlsx'
-path_pr2 = r'Results\partial_pr2_alt4_log.xlsx'
-
+path = r'Results\FD_IV_v4_log_robust.xlsx'
+path_pcorr = r'Results\partial_corr_log_robust.xlsx'
+path_pr2 = r'Results\partial_pr2_log_robust.xlsx'
 
 with pd.ExcelWriter(path) as writer:
     # Save dumls
     table_step1_dumls.to_excel(writer, sheet_name = 'Step 1 Dumls')
 
     for i in range(6):
-        list_tables_step2_dumls[i].to_excel(writer, sheet_name = 'Dumls - {}'.format(sheets_step2[i]))  
+        list_tables_step2_dumls[i].to_excel(writer, sheet_name = 'Dumls - {}'.format(sheets_step2[i]))
+    one_table_dumls.to_excel(writer, sheet_name = 'Step 2 Dumls - One Table') 
     
     # Save LS_tot_ta
     table_step1_lstotta.to_excel(writer, sheet_name = 'Step 1 LSTA') 
     
     for i in range(6):
-        list_tables_step2_lstotta[i].to_excel(writer, sheet_name = 'LSTA - {}'.format(sheets_step2[i]))    
-
+        list_tables_step2_lstotta[i].to_excel(writer, sheet_name = 'LSTA - {}'.format(sheets_step2[i]))
+    one_table_lstotta.to_excel(writer, sheet_name = 'Step 2 LSTA - One Table')
+        
 # Save the pcorr
 with pd.ExcelWriter(path_pcorr) as writer:   
     for i in range(3):
@@ -704,4 +717,3 @@ with pd.ExcelWriter(path_pr2) as writer:
         
     for i in range(3):
         pr2_lstotta_df[i].to_excel(writer, sheet_name = 'LSTA - {}'.format(sheets_step2[i]))   
-    

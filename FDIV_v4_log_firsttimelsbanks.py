@@ -1,5 +1,6 @@
 #------------------------------------------
 # IV treatment model for first working paper
+# ALTERNATIVE ROA
 # Mark van der Plaat
 # December 2019 
 
@@ -78,7 +79,7 @@ df['dum_ls'] = np.exp((df.ls_tot > 0) * 1) - 1 #will be taken the log of later
 ## Take a subset of variables (only the ones needed)
 vars_needed = ['distance','provratio','net_coffratio_tot_ta',\
                'allowratio_tot_ta','ls_tot_ta','dum_ls','size',\
-               'RC7205','loanratio','roa','depratio','comloanratio','RC2170',\
+               'RC7205','loanratio','roa_a','depratio','comloanratio','RC2170',\
                'num_branch', 'bhc', 'RIAD4150', 'perc_limited_branch',\
                'unique_states','mortratio','consloanratio',\
                'agriloanratio','loanhhi','costinc']
@@ -90,19 +91,32 @@ df_full = df[vars_needed]
 ## Correct dummy and percentage variables for log
 df_full['bhc'] = np.exp(df_full.bhc) - 1
 
+'''
+## Take the banks that have at least one value for LS 
+ls_banks_counts = df_full[df_full.ls_tot_ta > 0.0].index.get_level_values(0).value_counts().to_frame()
+bank_counts = df_full.index.get_level_values(0).value_counts().to_frame()
+ls_banks_counts_df = ls_banks_counts.merge(bank_counts, how = 'left', left_on = ls_banks_counts.index, right_on = bank_counts.index)
+ls_ids = ls_banks_counts_df[ls_banks_counts_df.iloc[:,1] < ls_banks_counts_df.iloc[:,2]].iloc[:,0].to_list()
+df = df_full[df_full.index.get_level_values(0).isin(ls_ids)]
+'''
+
 ## Take logs of the df
 df_full = df_full.transform(lambda df: np.log(1 + df))
 
 ## Take the first differences
-df_full_fd = df_full.groupby(df_full.index.get_level_values(0)).transform(lambda df: df.shift(periods = 1) - df).dropna()
+df_full_fd = df_full.groupby(df.index.get_level_values(0)).diff(periods = 1).dropna()
+
+## Take subsection of the df (first-time loan sellers)
+ids_ftls = df_full_fd[df_full_fd.dum_ls == 1].index.get_level_values(0).unique()
+df_fd = df_full_fd[df_full_fd.index.get_level_values(0).isin(ids_ftls)]
 
 ## Add time dummies
-dummy_full_fd = pd.get_dummies(df_full_fd.index.get_level_values(1))
+dummy_fd = pd.get_dummies(df_fd.index.get_level_values(1))
 
 ### Add dummies to the dfs
-col_dummy = ['dum' + dummy for dummy in dummy_full_fd.columns.astype(str).str[:4].tolist()]
-dummy_full_fd = pd.DataFrame(np.array(dummy_full_fd), index = df_full_fd.index, columns = col_dummy)
-df_full_fd[col_dummy] = dummy_full_fd
+col_dummy = ['dum' + dummy for dummy in dummy_fd.columns.astype(str).str[:4].tolist()]
+dummy_fd = pd.DataFrame(np.array(dummy_fd), index = df_fd.index, columns = col_dummy)
+df_fd[col_dummy] = dummy_fd
 
 # Subset the df take the crisis subsets
 ''' Crisis dates are (based on the NBER recession dates):
@@ -113,10 +127,10 @@ df_full_fd[col_dummy] = dummy_full_fd
     Note that the Dodd-Frank act enactment year equals the year the post
     crisis sample starts
     '''
-df_pre_fd = df_full_fd[df_full_fd.index.get_level_values(1) <= pd.Timestamp(2006,12,31)]
-df_during_fd = df_full_fd[(df_full_fd.index.get_level_values(1) > pd.Timestamp(2006,12,31)) & (df_full_fd.index.get_level_values(1) < pd.Timestamp(2010,12,31))]
-df_post_fd = df_full_fd[df_full_fd.index.get_level_values(1) >= pd.Timestamp(2010,12,31)]
-df_predodd_fd = df_full_fd[df_full_fd.index.get_level_values(1) < pd.Timestamp(2010,12,31)]
+df_pre_fd = df_fd[df_fd.index.get_level_values(1) <= pd.Timestamp(2006,12,31)]
+df_during_fd = df_fd[(df_fd.index.get_level_values(1) > pd.Timestamp(2006,12,31)) & (df_fd.index.get_level_values(1) < pd.Timestamp(2010,12,31))]
+df_post_fd = df_fd[df_fd.index.get_level_values(1) >= pd.Timestamp(2010,12,31)]
+df_predodd_fd = df_fd[df_fd.index.get_level_values(1) < pd.Timestamp(2010,12,31)]
 
 #---------------------------------------------------
 # Load the necessary test functions
@@ -348,14 +362,14 @@ def scoreFDIVtest(test_table):
 #----------------------------------------------
 
 # Set the righthand side of the formulas used in analysesFDIV
-righthand_x = r'RC7205 + loanratio + roa + depratio + comloanratio + mortratio + consloanratio + loanhhi + costinc + RC2170 + bhc'
+righthand_x = r'RC7205 + loanratio + roa_a + depratio + comloanratio + mortratio + consloanratio + loanhhi + costinc + RC2170 + bhc'
 
 vars_endo = ['dum_ls','ls_tot_ta'] 
 
 vars_z = ['RIAD4150 + perc_limited_branch'] # In list in case multiple instruments are needed to be run
 # Setup up th rest of the data for loops
 ## Note: To loop over the four dataframes, we put them in a list
-list_dfs = [df_full_fd, df_pre_fd, df_during_fd,df_predodd_fd,df_post_fd]
+list_dfs = [df_fd, df_pre_fd, df_during_fd,df_predodd_fd,df_post_fd]
 
 #----------------------------------------------
 # Run models
@@ -493,6 +507,10 @@ dict_var_names = {'':'',
                  'rwata':'RWA/TA',
                  'net_coffratio_tot_ta':'Loan Charge-offs',
                  'allowratio_tot_ta':'Loan Loss Allowances',
+                 'net_coffratio_on_ta':'Loan Charge-offs (On)',
+                 'allowratio_on_ta':'Loan Loss Allowances (On)',
+                 'net_coffratio_off_ta':'Loan Charge-offs (Off)',
+                 'allowratio_off_ta':'Loan Loss Allowances (Off)',
                  'ls_tot_ta':'Loan Sales/TA',
                  'dum_ls':'Dummy Loan Sales',
                  'size':'Log(TA)',
@@ -520,10 +538,14 @@ dict_var_names = {'':'',
                  'F-test Weak Instruments':'F-test Weak Instruments',
                  'DWH-test':'DWH-test',
                  'P-val Sargan-test':'P-val Sargan-test',
+                 'roa_alt_hat':'$\hat{ROA}_{alt}$',
+                 'roa_tilde':'$\tilde{ROA}$',
+                 'roa_alt_tilde':'$\widetilde{ROA}$',
+                 'roa_a':'$ROA_a$',
                  'costinc':'Cost-to-income'}
 
 ## Add the time dummies to the dict
-keys_time_dummies = df_full_fd.columns[df_full_fd.columns.str.contains('dum2')]
+keys_time_dummies = df_fd.columns[df_fd.columns.str.contains('dum2')]
 values_time_dummies = 'I(t=' + keys_time_dummies.str[3:] + ')'
 
 dict_td = {}
@@ -646,9 +668,9 @@ sheets_step2 = ['Charge-offs','Allowance','Provisions',\
                 'Charge-offs_corr','Allowance_corr','Provisions_corr']
 
 # Save the tables
-path = r'Results\FD_IV_v4_log.xlsx'
-path_pcorr = r'Results\partial_corr_log.xlsx'
-path_pr2 = r'Results\partial_pr2_log.xlsx'
+path = r'Results\FD_IV_v4_log_firsttimelsbanks.xlsx'
+path_pcorr = r'Results\partial_corr_log_firsttimelsbanks.xlsx'
+path_pr2 = r'Results\partial_pr2_log_firsttimelsbanks.xlsx'
 
 with pd.ExcelWriter(path) as writer:
     # Save dumls

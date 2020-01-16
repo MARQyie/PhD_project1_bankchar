@@ -75,10 +75,9 @@ df.set_index(['IDRSSD','date'],inplace=True)
 ## Dummy variable for loan sales
 df['dum_ls'] = np.exp((df.ls_tot > 0) * 1) - 1 #will be taken the log of later
 
-## Take a subset of variables (only the ones needed)
 vars_needed = ['distance','provratio','net_coffratio_tot_ta',\
                'allowratio_tot_ta','ls_tot_ta','dum_ls','size',\
-               'RC7205','loanratio','roa','depratio','comloanratio','RC2170',\
+               'RC7205','loanratio','roa_alt_tilde','depratio','comloanratio','RC2170',\
                'num_branch', 'bhc', 'RIAD4150', 'perc_limited_branch',\
                'unique_states','mortratio','consloanratio',\
                'agriloanratio','loanhhi','costinc']
@@ -92,6 +91,16 @@ df_full['bhc'] = np.exp(df_full.bhc) - 1
 
 ## Take logs of the df
 df_full = df_full.transform(lambda df: np.log(1 + df))
+
+## Lag the RHS and drop missings
+df_full[['ls_tot_ta', 'dum_ls', 'size', 'RC7205', 'loanratio', 'roa_alt_tilde',\
+       'depratio', 'comloanratio', 'RC2170', 'num_branch', 'bhc', 'RIAD4150',\
+       'perc_limited_branch', 'unique_states', 'mortratio', 'consloanratio',\
+       'agriloanratio', 'loanhhi', 'costinc']] = df_full[['ls_tot_ta', 'dum_ls', 'size', 'RC7205', 'loanratio', 'roa_alt_tilde',\
+       'depratio', 'comloanratio', 'RC2170', 'num_branch', 'bhc', 'RIAD4150',\
+       'perc_limited_branch', 'unique_states', 'mortratio', 'consloanratio',\
+       'agriloanratio', 'loanhhi', 'costinc']].groupby(df_full.index.get_level_values(0)).shift(1)
+df_full.dropna(inplace = True)                                                
 
 ## Take the first differences
 df_full_fd = df_full.groupby(df_full.index.get_level_values(0)).transform(lambda df: df.shift(periods = 1) - df).dropna()
@@ -348,7 +357,7 @@ def scoreFDIVtest(test_table):
 #----------------------------------------------
 
 # Set the righthand side of the formulas used in analysesFDIV
-righthand_x = r'RC7205 + loanratio + roa + depratio + comloanratio + mortratio + consloanratio + loanhhi + costinc + RC2170 + bhc'
+righthand_x = r'RC7205 + loanratio + roa_alt_tilde + depratio + comloanratio + mortratio + consloanratio + loanhhi + costinc + RC2170 + bhc'
 
 vars_endo = ['dum_ls','ls_tot_ta'] 
 
@@ -520,8 +529,10 @@ dict_var_names = {'':'',
                  'F-test Weak Instruments':'F-test Weak Instruments',
                  'DWH-test':'DWH-test',
                  'P-val Sargan-test':'P-val Sargan-test',
+                 'roa_alt_hat':'$\hat{ROA}_{alt}$',
+                 'roa_tilde':'$\tilde{ROA}$',
+                 'roa_alt_tilde':'$\widetilde{ROA}$',
                  'costinc':'Cost-to-income'}
-
 ## Add the time dummies to the dict
 keys_time_dummies = df_full_fd.columns[df_full_fd.columns.str.contains('dum2')]
 values_time_dummies = 'I(t=' + keys_time_dummies.str[3:] + ')'
@@ -646,9 +657,9 @@ sheets_step2 = ['Charge-offs','Allowance','Provisions',\
                 'Charge-offs_corr','Allowance_corr','Provisions_corr']
 
 # Save the tables
-path = r'Results\FD_IV_v4_log.xlsx'
-path_pcorr = r'Results\partial_corr_log.xlsx'
-path_pr2 = r'Results\partial_pr2_log.xlsx'
+path = r'Results\FD_IV_v4_log_lag.xlsx'
+path_pcorr = r'Results\partial_corr_log_lag.xlsx'
+path_pr2 = r'Results\partial_pr2_log_lag.xlsx'
 
 with pd.ExcelWriter(path) as writer:
     # Save dumls

@@ -1,5 +1,6 @@
 #------------------------------------------
 # IV treatment model for first working paper
+# ALTERNATIVE ROA
 # Mark van der Plaat
 # December 2019 
 
@@ -78,7 +79,7 @@ df['dum_ls'] = np.exp((df.ls_tot > 0) * 1) - 1 #will be taken the log of later
 ## Take a subset of variables (only the ones needed)
 vars_needed = ['distance','provratio','net_coffratio_tot_ta',\
                'allowratio_tot_ta','ls_tot_ta','dum_ls','size',\
-               'RC7205','loanratio','roa','depratio','comloanratio','RC2170',\
+               'RC7205','loanratio','roa_tilde','depratio','comloanratio','RC2170',\
                'num_branch', 'bhc', 'RIAD4150', 'perc_limited_branch',\
                'unique_states','mortratio','consloanratio',\
                'agriloanratio','loanhhi','costinc']
@@ -348,7 +349,7 @@ def scoreFDIVtest(test_table):
 #----------------------------------------------
 
 # Set the righthand side of the formulas used in analysesFDIV
-righthand_x = r'RC7205 + loanratio + roa + depratio + comloanratio + mortratio + consloanratio + loanhhi + costinc + RC2170 + bhc'
+righthand_x = r'RC7205 + loanratio + roa_tilde + depratio + comloanratio + mortratio + consloanratio + loanhhi + costinc + RC2170 + bhc'
 
 vars_endo = ['dum_ls','ls_tot_ta'] 
 
@@ -520,6 +521,8 @@ dict_var_names = {'':'',
                  'F-test Weak Instruments':'F-test Weak Instruments',
                  'DWH-test':'DWH-test',
                  'P-val Sargan-test':'P-val Sargan-test',
+                 'roa_alt_hat':'$\hat{ROA}_{alt}$',
+                 'roa_tilde':'$\tilde{ROA}$',
                  'costinc':'Cost-to-income'}
 
 ## Add the time dummies to the dict
@@ -646,9 +649,9 @@ sheets_step2 = ['Charge-offs','Allowance','Provisions',\
                 'Charge-offs_corr','Allowance_corr','Provisions_corr']
 
 # Save the tables
-path = r'Results\FD_IV_v4_log.xlsx'
-path_pcorr = r'Results\partial_corr_log.xlsx'
-path_pr2 = r'Results\partial_pr2_log.xlsx'
+path = r'Results\FD_IV_v4_log_roatilde.xlsx'
+path_pcorr = r'Results\partial_corr_log_roatilde.xlsx'
+path_pr2 = r'Results\partial_pr2_log_roatilde.xlsx'
 
 with pd.ExcelWriter(path) as writer:
     # Save dumls

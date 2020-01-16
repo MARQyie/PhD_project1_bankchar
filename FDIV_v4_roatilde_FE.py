@@ -1,5 +1,6 @@
 #------------------------------------------
 # IV treatment model for first working paper
+# ALTERNATIVE ROA (see bikker et al 2012)
 # Mark van der Plaat
 # December 2019 
 
@@ -78,7 +79,7 @@ df['dum_ls'] = np.exp((df.ls_tot > 0) * 1) - 1 #will be taken the log of later
 ## Take a subset of variables (only the ones needed)
 vars_needed = ['distance','provratio','net_coffratio_tot_ta',\
                'allowratio_tot_ta','ls_tot_ta','dum_ls','size',\
-               'RC7205','loanratio','roa','depratio','comloanratio','RC2170',\
+               'RC7205','loanratio','roa_a','depratio','comloanratio','RC2170',\
                'num_branch', 'bhc', 'RIAD4150', 'perc_limited_branch',\
                'unique_states','mortratio','consloanratio',\
                'agriloanratio','loanhhi','costinc']
@@ -94,7 +95,7 @@ df_full['bhc'] = np.exp(df_full.bhc) - 1
 df_full = df_full.transform(lambda df: np.log(1 + df))
 
 ## Take the first differences
-df_full_fd = df_full.groupby(df_full.index.get_level_values(0)).transform(lambda df: df.shift(periods = 1) - df).dropna()
+df_full_fd = df_full.groupby(df_full.index.get_level_values(0)).apply(lambda df: df - df.mean()).dropna()
 
 ## Add time dummies
 dummy_full_fd = pd.get_dummies(df_full_fd.index.get_level_values(1))
@@ -191,15 +192,15 @@ def analysesFDIV(df, var_ls, righthand_x, righthand_z, time_dummies):
     
     ## Make a string of the time dummy vector
     time_dummies = ' + '.join(time_dummies)
-    
+   
     #----------------------------------------------    
     # First check the data on column rank
     ## If not full column rank return empty lists
     rank_full = np.linalg.matrix_rank(df[vars_x + vars_z + time_dummies.split(' + ')]) 
     
     if rank_full != len(vars_x + vars_z + time_dummies.split(' + ')):
-        return([],[],[],[],[],[],[])
-    
+        return([],[],[],[],[],[],[],[])
+      
     #----------------------------------------------
     # STEP 1: First Stage
     #----------------------------------------------
@@ -348,7 +349,7 @@ def scoreFDIVtest(test_table):
 #----------------------------------------------
 
 # Set the righthand side of the formulas used in analysesFDIV
-righthand_x = r'RC7205 + loanratio + roa + depratio + comloanratio + mortratio + consloanratio + loanhhi + costinc + RC2170 + bhc'
+righthand_x = r'RC7205 + loanratio + roa_a + depratio + comloanratio + mortratio + consloanratio + loanhhi + costinc + RC2170 + bhc'
 
 vars_endo = ['dum_ls','ls_tot_ta'] 
 
@@ -520,7 +521,10 @@ dict_var_names = {'':'',
                  'F-test Weak Instruments':'F-test Weak Instruments',
                  'DWH-test':'DWH-test',
                  'P-val Sargan-test':'P-val Sargan-test',
-                 'costinc':'Cost-to-income'}
+                 'roa_alt_hat':'$\hat{ROA}_{alt}$',
+                 'roa_tilde':'$\tilde{ROA}$',
+                 'costinc':'Cost-to-income',
+                 'roa_a':'$ROA_a$'}
 
 ## Add the time dummies to the dict
 keys_time_dummies = df_full_fd.columns[df_full_fd.columns.str.contains('dum2')]
@@ -646,9 +650,9 @@ sheets_step2 = ['Charge-offs','Allowance','Provisions',\
                 'Charge-offs_corr','Allowance_corr','Provisions_corr']
 
 # Save the tables
-path = r'Results\FD_IV_v4_log.xlsx'
-path_pcorr = r'Results\partial_corr_log.xlsx'
-path_pr2 = r'Results\partial_pr2_log.xlsx'
+path = r'Results\FD_IV_v4_log_roatilde_fe.xlsx'
+path_pcorr = r'Results\partial_corr_log_roatilde_fe.xlsx'
+path_pr2 = r'Results\partial_pr2_log_roatilde_fe.xlsx'
 
 with pd.ExcelWriter(path) as writer:
     # Save dumls

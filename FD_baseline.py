@@ -46,10 +46,10 @@ else:
 ## Take a subset of variables (only the ones needed)
 vars_needed = ['distance','provratio','rwata','net_coffratio_tot_ta',\
                'allowratio_tot_ta','ls_tot_ta','dum_ls','size',\
-               'RC7205','loanratio','roa','depratio','comloanratio','RC2170',\
+               'RC7204','loanratio','roa_a','depratio','comloanratio','RC2170',\
                'num_branch', 'bhc', 'RIAD4150', 'perc_limited_branch',\
                'perc_full_branch', 'unique_states','UNIT','nim','nnim',\
-               'mortratio','consloanratio','agriloanratio','loanhhi']
+               'mortratio','consloanratio','agriloanratio','loanhhi','costinc']
 df_full = df[vars_needed]
 
 #---------------------------------------------------
@@ -175,9 +175,9 @@ def analysesFD(df, var_ls, righthand_x, time_dummies):
 
 # Set the righthand side of the formulas
 if log:
-    righthand_x = r'RC7205 + loanratio + depratio + roa + comloanratio + mortratio + consloanratio + loanhhi + RC2170 + bhc'
+    righthand_x = r'RC7204 + loanratio + depratio + roa_a + comloanratio + mortratio + consloanratio + loanhhi + costinc + RC2170 + bhc'
 else:
-    righthand_x = r'RC7205 + loanratio + depratio + roa + comloanratio + mortratio + consloanratio + loanhhi + size + bhc'
+    righthand_x = r'RC7204 + loanratio + depratio + roa_a + comloanratio + mortratio + consloanratio + loanhhi + costinc + size + bhc'
 
 time_dummies = ' + '.join(col_dummy[1:])
    
@@ -260,9 +260,9 @@ dict_var_names = {'':'',
                  'ls_tot_ta':'Loan Sales/TA',
                  'dum_ls':'Dummy Loan Sales',
                  'size':'Log(TA)',
-                 'RC7205':'Regulatory Capital Ratio',
+                 'RC7204':'Regulatory Leverage Ratio',
                  'loanratio':'Loan Ratio',
-                 'roa':'ROA',
+                 'roa_a':'$ROA_a$',
                  'nim':'Net Interest Margin',
                  'nnim':'Net Non-Interest Margin',
                  'mortratio':'Mortgage Ratio',
@@ -283,7 +283,8 @@ dict_var_names = {'':'',
                  'R-squared:':'$R^2$',
                  'F-test Weak Instruments':'F-test Weak Instruments',
                  'DWH-test':'DWH-test',
-                 'P-val Sargan-test':'P-val Sargan-test'}
+                 'P-val Sargan-test':'P-val Sargan-test',
+                 'costinc':'Cost-to-income'}
 
 ## Add the time dummies to the dict
 keys_time_dummies = df_full_fd.columns[df_full_fd.columns.str.contains('dum2')]
@@ -301,6 +302,8 @@ columns = ['Full','Pre-Crisis','Crisis','Pre-Dodd-Frank','Post-Crisis/Dodd-Frank
 #----------------------------------------------
 # Make table 
 #----------------------------------------------
+
+# For separate tables
 
 list_tables_dumls = []
 list_tables_lstotta = []
@@ -333,6 +336,18 @@ for i in range(len(sum_dumls)):
     list_tables_dumls.append(table_dumls)
     list_tables_lstotta.append(table_lstotta)
 
+# For one table for chargeoffs and allowance
+## Make a list for the columns 
+columns_one_table = [('Loan Charge-offs','Full'),('Loan Charge-offs','Pre-Dodd-Frank'),('Loan Charge-offs','Post-Dodd-Frank'),\
+                     ('Loan Loss Allowances','Full'),('Loan Loss Allowances','Pre-Dodd-Frank'),('Loan Loss Allowances','Post-Dodd-Frank')]    
+
+## Make the tables and give the correct columns    
+one_table_dumls = pd.concat([list_tables_dumls[0].iloc[:,[0,3,4]], list_tables_dumls[1].iloc[:,[0,3,4]]], axis = 1)
+one_table_dumls.columns = pd.MultiIndex.from_tuples(columns_one_table)
+
+one_table_lstotta = pd.concat([list_tables_lstotta[0].iloc[:,[0,3,4]], list_tables_lstotta[1].iloc[:,[0,3,4]]], axis = 1)
+one_table_lstotta.columns = pd.MultiIndex.from_tuples(columns_one_table)
+
 #----------------------------------------------
 # Save the tables 
 #----------------------------------------------
@@ -346,8 +361,11 @@ with pd.ExcelWriter(path) as writer:
     # Save dumls
     for i in range(len(list_tables_dumls)):
         list_tables_dumls[i].to_excel(writer, sheet_name = 'Dumls - {}'.format(sheets[i])) 
+    one_table_dumls.to_excel(writer, sheet_name = 'Dumls - One Table') 
+    
     
     # Save LS_tot_ta
     for i in range(len(list_tables_lstotta)):
         list_tables_lstotta[i].to_excel(writer, sheet_name = 'LSTA - {}'.format(sheets[i]))
+    one_table_lstotta.to_excel(writer, sheet_name = 'LSTA - One Table') 
 

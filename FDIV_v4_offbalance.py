@@ -1,5 +1,6 @@
 #------------------------------------------
 # IV treatment model for first working paper
+# ALTERNATIVE ROA
 # Mark van der Plaat
 # December 2019 
 
@@ -76,9 +77,9 @@ df.set_index(['IDRSSD','date'],inplace=True)
 df['dum_ls'] = np.exp((df.ls_tot > 0) * 1) - 1 #will be taken the log of later
 
 ## Take a subset of variables (only the ones needed)
-vars_needed = ['distance','provratio','net_coffratio_tot_ta',\
-               'allowratio_tot_ta','ls_tot_ta','dum_ls','size',\
-               'RC7205','loanratio','roa','depratio','comloanratio','RC2170',\
+vars_needed = ['distance','provratio','net_coffratio_off_ta',\
+               'allowratio_off_ta','ls_tot_ta','dum_ls','size',\
+               'RC7205','loanratio','roa_a','depratio','comloanratio','RC2170',\
                'num_branch', 'bhc', 'RIAD4150', 'perc_limited_branch',\
                'unique_states','mortratio','consloanratio',\
                'agriloanratio','loanhhi','costinc']
@@ -94,7 +95,7 @@ df_full['bhc'] = np.exp(df_full.bhc) - 1
 df_full = df_full.transform(lambda df: np.log(1 + df))
 
 ## Take the first differences
-df_full_fd = df_full.groupby(df_full.index.get_level_values(0)).transform(lambda df: df.shift(periods = 1) - df).dropna()
+df_full_fd = df_full.groupby(df_full.index.get_level_values(0)).diff(periods = 1).dropna()
 
 ## Add time dummies
 dummy_full_fd = pd.get_dummies(df_full_fd.index.get_level_values(1))
@@ -187,7 +188,7 @@ def analysesFDIV(df, var_ls, righthand_x, righthand_z, time_dummies):
     '''NOTE: RWATA performed quite bad in previous iterations of the script.
         Hence we remove it from the list'''
     #dep_var_step2 = ['net_coffratio_tot_ta','allowratio_tot_ta','rwata','provratio']
-    dep_var_step2 = ['net_coffratio_tot_ta','allowratio_tot_ta','provratio']
+    dep_var_step2 = ['net_coffratio_off_ta','allowratio_off_ta','provratio']
     
     ## Make a string of the time dummy vector
     time_dummies = ' + '.join(time_dummies)
@@ -348,7 +349,7 @@ def scoreFDIVtest(test_table):
 #----------------------------------------------
 
 # Set the righthand side of the formulas used in analysesFDIV
-righthand_x = r'RC7205 + loanratio + roa + depratio + comloanratio + mortratio + consloanratio + loanhhi + costinc + RC2170 + bhc'
+righthand_x = r'RC7205 + loanratio + roa_a + depratio + comloanratio + mortratio + consloanratio + loanhhi + costinc + RC2170 + bhc'
 
 vars_endo = ['dum_ls','ls_tot_ta'] 
 
@@ -493,6 +494,10 @@ dict_var_names = {'':'',
                  'rwata':'RWA/TA',
                  'net_coffratio_tot_ta':'Loan Charge-offs',
                  'allowratio_tot_ta':'Loan Loss Allowances',
+                 'net_coffratio_on_ta':'Loan Charge-offs (On)',
+                 'allowratio_on_ta':'Loan Loss Allowances (On)',
+                 'net_coffratio_off_ta':'Loan Charge-offs (Off)',
+                 'allowratio_off_ta':'Loan Loss Allowances (Off)',
                  'ls_tot_ta':'Loan Sales/TA',
                  'dum_ls':'Dummy Loan Sales',
                  'size':'Log(TA)',
@@ -520,6 +525,10 @@ dict_var_names = {'':'',
                  'F-test Weak Instruments':'F-test Weak Instruments',
                  'DWH-test':'DWH-test',
                  'P-val Sargan-test':'P-val Sargan-test',
+                 'roa_alt_hat':'$\hat{ROA}_{alt}$',
+                 'roa_tilde':'$\tilde{ROA}$',
+                 'roa_alt_tilde':'$\widetilde{ROA}$',
+                 'roa_a':'$ROA_a$',
                  'costinc':'Cost-to-income'}
 
 ## Add the time dummies to the dict
@@ -646,9 +655,9 @@ sheets_step2 = ['Charge-offs','Allowance','Provisions',\
                 'Charge-offs_corr','Allowance_corr','Provisions_corr']
 
 # Save the tables
-path = r'Results\FD_IV_v4_log.xlsx'
-path_pcorr = r'Results\partial_corr_log.xlsx'
-path_pr2 = r'Results\partial_pr2_log.xlsx'
+path = r'Results\FD_IV_v4_log_offbalance.xlsx'
+path_pcorr = r'Results\partial_corr_log_offbalance.xlsx'
+path_pr2 = r'Results\partial_pr2_log_offbalance.xlsx'
 
 with pd.ExcelWriter(path) as writer:
     # Save dumls

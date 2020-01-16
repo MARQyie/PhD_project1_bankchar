@@ -97,12 +97,12 @@ list_multicolumns = [('Total Sample', 'Mean'), ('Total Sample', 'SD'),\
 # Table 1: Variables Call Reports
 ## Set labels and variables
 vars_call = ['RC2170bln', 'tot_size_exp', 'RC2122bln', 'ls_tot_ta','dum_ls','net_coffratio_tot_ta',\
-             'allowratio_tot_ta','provratio','RC7205','loanratio','roa','nim','nnim','depratio',\
+             'allowratio_tot_ta','provratio','RC7204','RC7205','loanratio','roa','nim','nnim','depratio',\
              'comloanratio','mortratio','consloanratio','loanhhi','bhc','RIAD4150']
 
 labels_call = ['Total Assets (\$ bln)','Total Assets (On + Off; \$ bln)', 'Total Loans (\$ bln)', 'Total Loan Sales-to-TA',\
                'Dummy Loan Sales','Total Net Charge-offs-to-TA','Total Allowances-to-TA', 'Provision Ratio',\
-               'Regulatory Capital Ratio', 'Loans-to-TA','Return on Assets',\
+               'Regulatory Leverage Ratio', 'Regulatory Capital Ratio', 'Loans-to-TA','Return on Assets',\
                'Net Interest Margin','Net Non-Interest Margin','Deposit Ratio','Commercial Loan Ratio',\
                'Mortgage Ratio','Consumer Loan Ratio','Loan HHI','BHC Indicator','Number of Employees']
 

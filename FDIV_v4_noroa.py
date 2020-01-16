@@ -1,5 +1,5 @@
 #------------------------------------------
-# IV treatment model for first working paper
+# IV treatment model for first working paper (NO ROA)
 # Mark van der Plaat
 # December 2019 
 
@@ -330,7 +330,7 @@ def tableIVtests(num_models,f_test_step1,pvals_ls_endo,sargan_res = None):
     else:
         indicator_tests = [a for a in [(i < 0.05) * 1 for i in f_test_list]]
         index = ['T-test weak instruments','P-val endogenous w','Indicator']
-        columns = ['charge_2a''allow_2a','prov_2a']
+        columns = ['charge_2a', 'allow_2a','prov_2a']
         
         return(pd.DataFrame([f_test_list,pvals_l_endo_list,indicator_tests],\
                              index = index, columns = columns))        
@@ -348,7 +348,7 @@ def scoreFDIVtest(test_table):
 #----------------------------------------------
 
 # Set the righthand side of the formulas used in analysesFDIV
-righthand_x = r'RC7205 + loanratio + roa + depratio + comloanratio + mortratio + consloanratio + loanhhi + costinc + RC2170 + bhc'
+righthand_x = r'RC7205 + loanratio + depratio + comloanratio + mortratio + consloanratio + loanhhi + costinc + RC2170 + bhc'
 
 vars_endo = ['dum_ls','ls_tot_ta'] 
 
@@ -642,13 +642,12 @@ for i in range(pcorr_dumls[0].shape[1]):
 # Save the tables 
 #----------------------------------------------
 # Prelims
-sheets_step2 = ['Charge-offs','Allowance','Provisions',\
-                'Charge-offs_corr','Allowance_corr','Provisions_corr']
+sheets_step2 = ['Charge-offs','Allowance','Provisions']
 
 # Save the tables
-path = r'Results\FD_IV_v4_log.xlsx'
-path_pcorr = r'Results\partial_corr_log.xlsx'
-path_pr2 = r'Results\partial_pr2_log.xlsx'
+path = r'Results\FD_IV_v4_log_noroa.xlsx'
+path_pcorr = r'Results\partial_corr_log_noroa.xlsx'
+path_pr2 = r'Results\partial_pr2_log_noroa.xlsx'
 
 with pd.ExcelWriter(path) as writer:
     # Save dumls

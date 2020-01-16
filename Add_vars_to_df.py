@@ -174,8 +174,13 @@ df['dloan'] = df.groupby('IDRSSD').RC2122.pct_change()
 df['dass'] = df.groupby('IDRSSD').RC2170.pct_change()
 
 ## Mortgages to loans
-df['mortratio'] = (df[['RCON1415','RCONF158','RCONF159','RC1420','RC1460','RC1797',\
-  'RC5367','RC5368','RCON1480','RCF160','RCF161']].sum(axis = 1).divide(df.RC2122)).replace(np.inf, 0)
+### First some intermediate calculations
+df['loans_sec_land'] = df.apply(lambda x: x.RCON1415 if ~np.isnan(x.RCON1415) else x[['RCONF158','RCONF159']].sum(), axis = 1)
+df['loans_sec_nonfarm'] = df.apply(lambda x: x.RCON1480 if ~np.isnan(x.RCON1480) else x[['RCONF160','RCONF161']].sum(), axis = 1)
+
+### Variable
+df['mortratio'] = (df[['loans_sec_land','RC1420','RC1460','RC1797',\
+  'RC5367','RC5368','loans_sec_nonfarm']].sum(axis = 1).divide(df.RC2122)).replace(np.inf, 0)
 
 ## Home Equity Lines to loans
 df['HEL'] = ((df.RCON3814) / df.RC2122).replace(np.inf, 0)
@@ -190,7 +195,7 @@ df['comloanratio'] = (df['RCON1766'] / df.RC2122).replace(np.inf, 0)
 df['agriloanratio'] = (df.RC1590 / df.RC2122).replace(np.inf, 0)
 
 ## Normalized HHI loan
-df['loanhhi'] = df[['mortratio','consloanratio','comloanratio','agriloanratio']].pow(2).sum(axis = 1) - (1 / (4 - 1))
+df['loanhhi'] = df[['mortratio','consloanratio','comloanratio','agriloanratio']].pow(2).sum(axis = 1) 
 
 ## RWA over TA
 df['rwata'] = (df.RCG641 / df.RC2170).replace(np.inf, 0)
@@ -200,12 +205,17 @@ df['coffratio'] = (df.RIAD4635 / df.RC2122).replace(np.inf, 0)
 df['coffratio_tot'] = (df[['RIADB747','RIADB748','RIADB749','RIADB750',\
   'RIADB751','RIADB752','RIADB753', 'RIAD4635']].sum(axis = 1) / df.RC2122).replace(np.inf, 0)
 
-df['net_coffratio'] = ((df.RIAD4635 + df.RIAD4605)/ df.RC2122).replace(np.inf, 0)
+df['net_coffratio'] = ((df.RIAD4635 - df.RIAD4605)/ df.RC2122).replace(np.inf, 0)
 df['net_coffratio_tot'] = ((df[['RIADB747','RIADB748','RIADB749','RIADB750',\
   'RIADB751','RIADB752','RIADB753', 'RIAD4635']].sum(axis = 1) - \
 df[['RIADB754','RIADB755','RIADB756','RIADB757','RIADB758','RIADB759','RIADB760', 'RIAD4605']].\
 sum(axis = 1))/ df.RC2122).replace(np.inf, 0)
 
+df['net_coffratio_on_ta'] = ((df.RIAD4635 - df.RIAD4605)/ df.RC2170).replace(np.inf, 0)
+df['net_coffratio_off_ta'] = ((df[['RIADB747','RIADB748','RIADB749','RIADB750',\
+  'RIADB751','RIADB752','RIADB753']].sum(axis = 1) - \
+df[['RIADB754','RIADB755','RIADB756','RIADB757','RIADB758','RIADB759','RIADB760']].\
+sum(axis = 1))/ df.RC2170).replace(np.inf, 0)
 df['net_coffratio_tot_ta'] = ((df[['RIADB747','RIADB748','RIADB749','RIADB750',\
   'RIADB751','RIADB752','RIADB753', 'RIAD4635']].sum(axis = 1) - \
 df[['RIADB754','RIADB755','RIADB756','RIADB757','RIADB758','RIADB759','RIADB760', 'RIAD4605']].\
@@ -225,6 +235,8 @@ df['allowratio_off_tot'] = (df.RCONB557/ (df.RC2122 + df.ls_tot)).replace(np.inf
 df['allowratio_tot_tot'] = ((df.RIAD3123 + df.RCONB557) / (df.RC2122 + df.ls_tot)).replace(np.inf, 0)
 
 df['tot_allowance'] = (df.RIAD3123 + df.RCONB557).replace(np.inf, 0)
+df['allowratio_on_ta'] = ((df.RIAD3123) / df.RC2170).replace(np.inf, 0)
+df['allowratio_off_ta'] = ((df.RCONB557) / df.RC2170).replace(np.inf, 0)
 df['allowratio_tot_ta'] = ((df.RIAD3123 + df.RCONB557) / df.RC2170).replace(np.inf, 0)
 
 ## Credit exposure loan sales ratio
@@ -244,6 +256,29 @@ df['roe'] = (df.RIAD4340 / df.RC3210).replace(np.inf, 0)
 ## ROA 
 df['roa'] = (df.RIAD4340 / df.RC2170).replace(np.inf, 0)
 df['roa_alt'] = (df.RIAD4301 / df.RC2170).replace(np.inf, 0)
+
+### Correction for loan loss provisions
+df['roa_hat'] = (df.RIAD4340 / df.RC2170).replace(np.inf, 0) + (df.RIAD4230 / df.RC2170).replace(np.inf, 0)
+df['roa_alt_hat'] = (df.RIAD4301 / df.RC2170).replace(np.inf, 0) + (df.RIAD4230 / df.RC2170).replace(np.inf, 0)
+
+### Correction for loan sales
+df['roa_bar'] = (df.RIAD4340 / df.RC2170).replace(np.inf, 0)\
+    - (((df.RIADB493 + df.RIAD5416)) / df.RC2170).replace(np.inf, 0)
+df['roa_alt_bar'] = (df.RIAD4301 / df.RC2170).replace(np.inf, 0)\
+    - (((df.RIADB493 + df.RIAD5416)) / df.RC2170).replace(np.inf, 0)
+
+### Correction for loan loss provisions and loan sales
+df['roa_tilde'] = (df.RIAD4340 / df.RC2170) + (df.RIAD4230 / df.RC2170)\
+    - (((df.RIADB493 + df.RIAD5416)) / df.RC2170).replace(np.nan, 0)
+df['roa_alt_tilde'] = (df.RIAD4301 / df.RC2170) + (df.RIAD4230 / df.RC2170)\
+    - (((df.RIADB493 + df.RIAD5416)) / df.RC2170).replace(np.nan, 0)
+    
+## ROA_a
+import statsmodels.formula.api as sm
+    
+res_roa = sm.ols(formula = 'roa ~ 1 + roa_tilde', data = df).fit()   
+df['roa_a'] = res_roa.fittedvalues
+    
 
 ## Net interest margin
 df['nim'] = (df.RIAD4074 / df.RC2170).replace(np.inf, 0)
