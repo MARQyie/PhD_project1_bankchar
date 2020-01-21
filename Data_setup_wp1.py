@@ -52,7 +52,8 @@ file_rcr1_rcon = r'/{}/FFIEC CDR Call Schedule RCR 1231{}(2 of 2).txt'
 file_rcr2_rcon = r'/{}/FFIEC CDR Call Schedule RCRII 1231{}(2 of 2).txt' #2014
 file_rcr3_rcon = r'/{}/FFIEC CDR Call Schedule RCRII 1231{}(2 of 3).txt' #from 2015
 file_rcr4_rcon = r'/{}/FFIEC CDR Call Schedule RCRII 1231{}(2 of 4).txt' #from 2017
-file_rcri1 = r'/{}/FFIEC CDR Call Schedule RCRIB 1231{}.txt' #2014
+file_rcria = r'/{}/FFIEC CDR Call Schedule RCRIA 1231{}.txt' #2014
+file_rcrib = r'/{}/FFIEC CDR Call Schedule RCRIB 1231{}.txt' #2014
 file_rcri2 = r'/{}/FFIEC CDR Call Schedule RCRI 1231{}.txt' #from 2015
 file_rcs = r'/{}/FFIEC CDR Call Schedule RCS 1231{}.txt'
 file_ri = r'/{}/FFIEC CDR Call Schedule RI 1231{}.txt'
@@ -252,11 +253,14 @@ for i in range(start,end):
                  sep='\t',  skiprows = [1,2]) 
         df_load_rcon = pd.read_csv((path_call + file_rcr2_rcon).format(i,i), \
                  sep='\t',  skiprows = [1,2])
-        df_load_rcri = pd.read_csv((path_call + file_rcri1).format(i,i), \
+        df_load_rcria = pd.read_csv((path_call + file_rcria).format(i,i), \
+                 sep='\t',  skiprows = [1,2])
+        df_load_rcrib = pd.read_csv((path_call + file_rcrib).format(i,i), \
                  sep='\t',  skiprows = [1,2])
     
         df_load = df_load_rcfd.merge(df_load_rcon, on = 'IDRSSD', how = 'left')
-        df_load = df_load.merge(df_load_rcri, on = 'IDRSSD', how = 'left')
+        df_load = df_load.merge(df_load_rcria, on = 'IDRSSD', how = 'left')
+        df_load = df_load.merge(df_load_rcrib, on = 'IDRSSD', how = 'left')
         df_load = df_load.loc[:,df_load.columns.str.contains(vars_rcr)]
         df_load['date'] = int('{}'.format(i))
     elif i == 2015 or i == 2016:
@@ -319,8 +323,8 @@ var_num = ['7204','7205','7206']
 
 for i,elem in enumerate(var_num):
     '''Combines the RCFD and RCON variables into one variable. If RCFD is a number it takes the RCFD, RCON otherwise '''
-    df_rcr['RCF{}'.format(elem)] = df_rcr.apply(lambda x: x['RCFA{}'.format(elem)] if x.date >= 2014 else (x['RCFD{}'.format(elem)]), axis = 1)
-    df_rcr['RCO{}'.format(elem)] = df_rcr.apply(lambda x: x['RCOA{}'.format(elem)] if x.date >= 2014 else (x['RCON{}'.format(elem)]), axis = 1) 
+    df_rcr['RCF{}'.format(elem)] = df_rcr.apply(lambda x: x['RCFA{}'.format(elem)] if x.date > 2014 else (x['RCFD{}'.format(elem)]), axis = 1)
+    df_rcr['RCO{}'.format(elem)] = df_rcr.apply(lambda x: x['RCOA{}'.format(elem)] if x.date > 2014 else (x['RCON{}'.format(elem)]), axis = 1) 
 
 for i,elem in enumerate(var_num):
     '''Combines the RCFD and RCON variables into one variable. If RCFD is a number it takes the RCFD, RCON otherwise '''

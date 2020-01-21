@@ -99,7 +99,7 @@ df['liqass'] = df[['RC0071','RC0081','RC1773','RC1754']].sum(axis = 1, skipna = 
 #RCON1350 (splits in BB987 + B989)
 
 ## Drop the NaNs
-nandrop_cols = ['RC2170','RC2122','RC2200','RC3210','RIAD4340','RC7205']
+nandrop_cols = ['RC2170','RC2122','RC2200','RC3210','RIAD4340','RC7204']
 df.dropna(subset = nandrop_cols , inplace = True)
 
 #------------------------------------------
