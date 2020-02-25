@@ -51,7 +51,7 @@ vars_needed = ['distance','provratio','net_coffratio_tot_ta',\
                'RC7205','loanratio','roa','depratio','comloanratio','RC2170',\
                'num_branch', 'bhc', 'RIAD4150', 'perc_limited_branch',\
                'unique_states','mortratio','consloanratio',\
-               'agriloanratio','loanhhi','nim','nnim','roa_alt']
+               'agriloanratio','loanhhi','nim','nnim','roa_a']
 df_full = df[vars_needed]
 
 #---------------------------------------------------
@@ -88,7 +88,7 @@ dict_var_names = {'':'',
                  'RC7205':'Regulatory Capital Ratio',
                  'loanratio':'Loan Ratio',
                  'roa':'ROA',
-                 'roa_alt':'ROA Alt.',
+                 'roa_a':'$ROA_a$',
                  'depratio':'Deposit Ratio',
                  'comloanratio':'Commercial Loan Ratio',
                  'RC2170':'Total Assets',
@@ -139,7 +139,7 @@ for matrix, title, path in zip(corr_matrices, titles, paths):
     ax = sns.heatmap(
         matrix, 
         vmin=-1, vmax=1, center=0,
-        cmap=sns.diverging_palette(20, 220, n=200),
+        #cmap=sns.diverging_palette(20, 220, n=200),
         annot = True
     )
     ax.set_xticklabels(

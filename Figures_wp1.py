@@ -52,10 +52,12 @@ line_styles = [(0, (1, 1)),(0, (5, 1)),(0, (3,1,1,1,1,1)),(0, (3,1,1,1)) ,':','-
 
 ##plot
 fig, ax = plt.subplots(figsize=(12, 8))
-plt.title('Total Securitized Loan Sales')
+#plt.title('Total Securitized Loan Sales')
 ax.set(xlabel='Year', ylabel = 'Amount of Securitized Loan Sales (in $ Billion)')
 for i in range(sec_year.shape[1]):
     ax.plot(sec_year.iloc[:,i], linestyle = line_styles[i], label = labels[i], color = 'black')
+ax.axvline(pd.Timestamp('2009-12-31'), color = 'r', alpha = 0.75)
+plt.text(pd.Timestamp('2009-12-31'), 160, ' Adoption Dodd-Frank Act', fontsize = 15, alpha = 0.75)
 ax.legend()
 plt.tight_layout()
 plt.show()
@@ -68,10 +70,12 @@ nonsec_year = nonsec_year.divide(1e6)
 
 ##plot
 fig, ax = plt.subplots(figsize=(12, 8))
-plt.title('Total Non-Securitized Loan Sales')
+#plt.title('Total Non-Securitized Loan Sales')
 ax.set(xlabel='Year', ylabel = 'Amount of Non-Securitized Loan Sales (in $ Billion)')
 for i in range(nonsec_year.shape[1]):
     ax.plot(nonsec_year.iloc[:,i], linestyle = line_styles[i], label = labels[i], color = 'black')
+ax.axvline(pd.Timestamp('2009-12-31'), color = 'r', alpha = 0.75)
+plt.text(pd.Timestamp('2009-12-31'), 22, ' Adoption Dodd-Frank Act', fontsize = 15, alpha = 0.75)
 ax.legend()
 plt.tight_layout()
 plt.show()
@@ -391,24 +395,6 @@ fig.savefig('Figures\Fig10b_cd.png')
 
 #-----------------------------------------------
 # Figure 11: Charge-offs 
-fig, ax = plt.subplots(figsize=(12, 8))
-plt.title('On-balance and Total Charge-offs')
-ax.set(xlabel='Year', ylabel = 'In $ Billion')
-ax.plot((df.RIAD4635.sum(level = [1,1]).droplevel(level = 0).divide(1e6) - \
-        df.RIAD4605.sum(level = [1,1]).droplevel(level = 0).divide(1e6)), linestyle = '-',\
-        color = 'black', label = 'On-balance Charge-offs')
-ax.plot((df[['RIADB747','RIADB748','RIADB749','RIADB750','RIADB751','RIADB752','RIADB753','RIAD4635']].\
-        sum(axis = 1).sum(level = [1,1]).droplevel(level = 0).divide(1e6) -\
-        df[['RIADB754','RIADB755','RIADB756','RIADB757','RIADB758','RIADB759','RIADB760','RIAD4605']].\
-        sum(axis = 1).sum(level = [1,1]).droplevel(level = 0).divide(1e6)), linestyle = '-.',\
-        color = 'black', label = 'Total Charge-offs')
-ax.grid(True)
-ax.legend()
-fig.tight_layout()
-plt.show()
-
-fig.savefig('Figures\Fig11_charge_offs.png')
-
 # Net charge offs
 fig, ax = plt.subplots(figsize=(12, 8))
 plt.title('On-balance and Total Charge-offs')
@@ -427,6 +413,21 @@ fig.tight_layout()
 plt.show()
 
 fig.savefig('Figures\Fig11_charge_offs.png')
+
+# Net charge offs + allowance rate
+fig, ax = plt.subplots(figsize=(12, 8))
+plt.title('On-balance and Net Charge-offs and Net Loan Loss Allowances')
+ax.set(xlabel='Year', ylabel = 'In %')
+ax.plot(df.net_coffratio_tot_ta.mean(level = [1,1]).droplevel(level = 0), linestyle = '-',\
+        color = 'black', label = 'Net Charge-offs')
+ax.plot(df.allowratio_tot_ta.mean(level = [1,1]).droplevel(level = 0), linestyle = '-.',\
+        color = 'black', label = 'Net Loan Loss Allowances')
+ax.grid(True)
+ax.legend()
+fig.tight_layout()
+plt.show()
+
+fig.savefig('Figures\Fig11b_charge_offs_llallow.png')
 
 
 #-----------------------------------------------

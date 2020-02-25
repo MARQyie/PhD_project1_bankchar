@@ -38,7 +38,7 @@ df = pd.read_csv('Data\df_assetcomp_raw.csv', index_col = 0 )
 var_codes = ['2170','3545','3548','0081','0071','2948','1771','1773','0213','1287','1754','1420',\
             '1460','1590','1797','2122','8725','8726','8727','8728','A126','A127','8723','8724',\
             'C968','C969','C970','C971','C972','C973','C974','C975','G641','B704','A222','3128',\
-            'A223','B705','B706','B707','B708','B709','B710','B711','B790','B796','3210',\
+            'A223','B706','B707','B708','B709','B710','B711','B796','3210',\
             'B712','B713','B714','B715','B716','B717','B718',\
            'B719','B720','B721','B722','B723','B724','B725',\
            'B797','B798','B799','B800','B801','B802','B803',\
@@ -112,6 +112,9 @@ df = df[(df.RC2170 >= 0) | (df.RC2122 >= 0)]
 df['ls_sec_tot_ta'] = (df.ls_sec_tot / df.RC2170).replace(np.inf, 0)
 df['ls_nonsec_tot_ta'] = (df.ls_nonsec_tot / df.RC2170).replace(np.inf, 0)
 df['ls_tot_ta'] = (df.ls_tot / df.RC2170).replace(np.inf, 0)
+
+### Mortgage loan sales
+df['ls_mort_ta'] = (df[['RCB705','RCB790']].sum(axis = 1, skipna = True) / df.RC2170).replace(np.inf, 0)
 
 ## Bank size
 df['size'] = np.log(df.RC2170)

@@ -6,7 +6,7 @@
 ''' 
     This document sets up the dataset for further analyses for working paper #1
 
-    Data used: US Call reports 2001-2018 year-end
+    Data used: US Call reports 2001-û9 year-end
     Only insured, commercial banks are taken
     ''' 
 #------------------------------------------
@@ -26,7 +26,7 @@ import csv
 #------------------------------------------
 # Set Prelims 
 start = 2001
-end = 2019
+end = 2020
 path_info = r'X:/My Documents/Data/Data_call_reports_fed'
 path_call = r'X:/My Documents/Data/Data_call_reports_FFIEC2'
 

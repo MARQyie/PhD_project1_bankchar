@@ -103,7 +103,7 @@ def analysesFD(df, var_ls, righthand_x, time_dummies):
     
     ## Vector of dependent variables
 
-    dep_vars = ['net_coffratio_tot_ta','allowratio_tot_ta','provratio']
+    dep_vars = ['net_coffratio_tot_ta','allowratio_tot_ta','rwata']
     
     ## Make a string of the time dummy vector
     time_dummies = ' + '.join(time_dummies)
@@ -339,20 +339,23 @@ for i in range(len(sum_dumls)):
 # For one table for chargeoffs and allowance
 ## Make a list for the columns 
 columns_one_table = [('Loan Charge-offs','Full'),('Loan Charge-offs','Pre-Dodd-Frank'),('Loan Charge-offs','Post-Dodd-Frank'),\
-                     ('Loan Loss Allowances','Full'),('Loan Loss Allowances','Pre-Dodd-Frank'),('Loan Loss Allowances','Post-Dodd-Frank')]    
+                 ('Loan Loss Allowances','Full'),('Loan Loss Allowances','Pre-Dodd-Frank'),('Loan Loss Allowances','Post-Dodd-Frank'),\
+                 ('RWA/TA','Full'),('RWA/TA','Pre-Dodd-Frank'),('RWA/TA','Post-Dodd-Frank')]    
 
 ## Make the tables and give the correct columns    
 one_table_dumls = pd.concat([list_tables_dumls[0].iloc[:,[0,3,4]], list_tables_dumls[1].iloc[:,[0,3,4]]], axis = 1)
+one_table_dumls = pd.concat([one_table_dumls, list_tables_dumls[2].iloc[:,[0,3,4]]], axis = 1)
 one_table_dumls.columns = pd.MultiIndex.from_tuples(columns_one_table)
 
 one_table_lstotta = pd.concat([list_tables_lstotta[0].iloc[:,[0,3,4]], list_tables_lstotta[1].iloc[:,[0,3,4]]], axis = 1)
+one_table_lstotta = pd.concat([one_table_lstotta, list_tables_dumls[2].iloc[:,[0,3,4]]], axis = 1)
 one_table_lstotta.columns = pd.MultiIndex.from_tuples(columns_one_table)
 
 #----------------------------------------------
 # Save the tables 
 #----------------------------------------------
 # Prelims
-sheets = ['Charge-offs','Allowance','Provisions']
+sheets = ['Charge-offs','Allowance','RWA/TA']
 
 # Save the tables
 path = r'Results\FD_v2_log.xlsx'

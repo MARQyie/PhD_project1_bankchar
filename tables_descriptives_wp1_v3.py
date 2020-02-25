@@ -96,19 +96,18 @@ list_multicolumns = [('Total Sample', 'Mean'), ('Total Sample', 'SD'),\
 #------------------------------------------
 # Table 1: Variables Call Reports
 ## Set labels and variables
-vars_call = ['RC2170bln', 'tot_size_exp', 'RC2122bln', 'ls_tot_ta','dum_ls','net_coffratio_tot_ta',\
-             'allowratio_tot_ta','provratio','RC7204','RC7205','loanratio','roa','nim','nnim','depratio',\
+vars_call = ['RC2170bln', 'ls_tot_ta','dum_ls','net_coffratio_tot_ta',\
+             'allowratio_tot_ta','rwata','RC7204','loanratio','roa_a','depratio',\
              'comloanratio','mortratio','consloanratio','loanhhi','bhc','RIAD4150']
 
-labels_call = ['Total Assets (\$ bln)','Total Assets (On + Off; \$ bln)', 'Total Loans (\$ bln)', 'Total Loan Sales-to-TA',\
-               'Dummy Loan Sales','Total Net Charge-offs-to-TA','Total Allowances-to-TA', 'Provision Ratio',\
-               'Regulatory Leverage Ratio', 'Regulatory Capital Ratio', 'Loans-to-TA','Return on Assets',\
-               'Net Interest Margin','Net Non-Interest Margin','Deposit Ratio','Commercial Loan Ratio',\
+labels_call = ['Total Assets (\$ bln)', 'Total Loan Sales-to-TA',\
+               'Dummy Loan Sales','Total Net Charge-offs-to-TA','Total Allowances-to-TA', \
+               'RWA/TA','Regulatory Leverage Ratio', 'Loans-to-TA','$ROA_a$',\
+               'Deposit Ratio','Commercial Loan Ratio',\
                'Mortgage Ratio','Consumer Loan Ratio','Loan HHI','BHC Indicator','Number of Employees']
 
-vars_sod = ['num_branch','distance','perc_limited_branch','perc_full_branch','unique_states','UNIT']
-labels_sod = ['Number of Branches','Maximum Distance Branches','Percentage Limited Service',\
-              'Percentage Full Service','Number of States Active', 'Unit Indicator']
+vars_sod = ['perc_limited_branch']
+labels_sod = ['Percentage Limited Service']
 
 ## Make table
 table_full = makeTables(df,vars_call + vars_sod,labels_call + labels_sod,list_multicolumns)
@@ -182,8 +181,8 @@ def makeTablesSubsets(df,variables,row_labels,column_labels,subset = 'size'):
         return([])
 
     ## Difference in means column (absolute value, percentage and t-stat)
-    table = pd.concat([table, pd.DataFrame(table.iloc[:,-4].values - table.iloc[:,-2].values,index = row_labels)], axis = 1)        
-    table = pd.concat([table, pd.DataFrame((table.iloc[:,-4].values / table.iloc[:,-2]) * 100, index = row_labels).replace(np.inf, np.nan)], axis = 1)
+    table = pd.concat([table, pd.DataFrame(table.iloc[:,-2].values - table.iloc[:,-4].values,index = row_labels)], axis = 1)        
+    table = pd.concat([table, pd.DataFrame(((table.iloc[:,-3].values / table.iloc[:,-5]) - 1) * 100, index = row_labels).replace(np.inf, np.nan)], axis = 1)
     
     ### T-stat (Welch Method: unequal size and variance)
     if subset == 'size':
