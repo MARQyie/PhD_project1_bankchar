@@ -9,7 +9,9 @@ import pandas as pd
 import numpy as np
 
 import os
-os.chdir(r'X:\My Documents\PhD\Materials_papers\1_Working_paper_loan_sales')
+#os.chdir(r'X:\My Documents\PhD\Materials_papers\1_Working_paper_loan_sales')
+os.chdir(r'D:\1_Working_paper_loan_sales')
+
 
 # Import method for OLS
 from linearmodels import PanelOLS
@@ -19,7 +21,7 @@ from linearmodels.iv._utility import annihilate
 from linearmodels.utility import WaldTestStatistic
 
 # Import a method to make nice tables
-from Code_docs.help_functions.summary3 import summary_col
+#from Code_docs.help_functions.summary3 import summary_col
 
 # Used for the partial R2s
 from scipy import stats
@@ -288,7 +290,7 @@ res_test = []
 
 # Other prelim
 t = df_full_fd.index.get_level_values(1).nunique()
-list_yearindex = df.index.get_level_values(1).unique().tolist()
+list_yearindex = df.index.get_level_values(1).unique().values
 
 # Loop over the df
 for year_vec in range(1,t-window + 2):
@@ -391,7 +393,7 @@ for k in range(len(params)):
         ## Plot prelims 
         fig, ax = plt.subplots(figsize=(12, 8))
         #plt.title(dict_var_names[var_name])
-        ax.set(xlabel='Mid Year')
+        ax.set(xlabel = 'Mid Year',ylabel = 'Parameter Estimate')
         
         ## Params
         ax.plot(year_labels, param_estimates)
@@ -401,11 +403,11 @@ for k in range(len(params)):
         
         ## Shaded areas
         ax_limits = ax.get_ylim() # get ax limits
-        ax.bar(bar_year,ax_limits[1] + abs(ax_limits[0]),width = 365, bottom = ax_limits[0], color = 'dimgrey', alpha = 0.2, linewidth = 0)
+        ax.bar(bar_year,(ax_limits[1] + abs(ax_limits[0])),width = 3.65e2, bottom = ax_limits[0], color = 'dimgrey', alpha = 0.2, linewidth = 0)
         #ax.fill_between(year_labels, ax_limits[1], ax_limits[0], where = test_estimates, step = 'mid', color = 'dimgrey', alpha = 0.2)
         
         ## Accentuate y = 0.0 
-        ax.axhline(0, color = 'maroon', alpha = 0.75)
+        ax.axhline(0, color = 'orangered', alpha = 0.75)
         
         ## Set ax limits
         ax.set_ylim(ax_limits)
