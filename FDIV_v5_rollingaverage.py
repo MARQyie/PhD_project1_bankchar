@@ -9,8 +9,8 @@ import pandas as pd
 import numpy as np
 
 import os
-#os.chdir(r'X:\My Documents\PhD\Materials_papers\1_Working_paper_loan_sales')
-os.chdir(r'D:\1_Working_paper_loan_sales')
+os.chdir(r'X:\My Documents\PhD\Materials_papers\1_Working_paper_loan_sales')
+#os.chdir(r'D:\1_Working_paper_loan_sales')
 
 
 # Import method for OLS
