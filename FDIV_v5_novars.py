@@ -6,11 +6,13 @@
 # Import packages
 import pandas as pd
 import numpy as np
+import itertools
+import multiprocessing as mp # For parallelization
+from joblib import Parallel, delayed # For parallelization
 
 import os
 #os.chdir(r'X:\My Documents\PhD\Materials_papers\1_Working_paper_loan_sales')
 os.chdir(r'D:\RUG\PhD\Materials_papers\1_Working_paper_loan_sales')
-
 
 # Import method for OLS
 from linearmodels import PanelOLS
@@ -22,8 +24,10 @@ from linearmodels.utility import WaldTestStatistic
 # Import a method to make nice tables
 from Code_docs.help_functions.summary3 import summary_col
 
+'''OLD
 # Used for the partial R2s
 from scipy import stats
+'''
 
 #--------------------------------------------
 ''' This script estimates the treatment effect of loan sales on credit risk
@@ -64,10 +68,10 @@ from scipy import stats
 #----------------------------------------------
 
 # Set the righthand side of the formulas used in analysesFDIV
-righthand_x = r'RC7204 + loanratio + roa_a + depratio + comloanratio + mortratio + consloanratio + loanhhi + costinc + RC2170 + bhc'
 vars_endo = ['dum_ls','ls_tot_ta'] 
 vars_z = ['RIAD4150 + perc_limited_branch'] # In list in case multiple instruments are needed to be run
 dep_vars = ['net_coffratio_tot_ta','allowratio_tot_ta','rwata']
+num_cores = mp.cpu_count()
 
 #----------------------------------------------
 # Load data and add needed variables
@@ -83,20 +87,17 @@ df.set_index(['IDRSSD','date'],inplace=True)
 df['dum_ls'] = np.exp((df.ls_tot > 0) * 1) - 1 #will be taken the log of later
 
 ## Take a subset of variables (only the ones needed)
-vars_needed = dep_vars + righthand_x.split(' + ') + vars_endo + list(np.unique(vars_z[0].split(' + ')))
+vars_needed = dep_vars + vars_endo + list(np.unique(vars_z[0].split(' + ')))
 df_full = df[vars_needed]
 
 #---------------------------------------------------
 # Setup the data
 
-## Correct dummy and percentage variables for log
-df_full['bhc'] = np.exp(df_full.bhc) - 1
-
 ## Take logs of the df
 df_full = df_full.transform(lambda df: np.log(1 + df))
 
 ## Take the first differences
-df_full_fd = df_full.groupby(df_full.index.get_level_values(0)).apply(lambda x: x - np.mean(x)).dropna()
+df_full_fd = df_full.groupby(df_full.index.get_level_values(0)).diff(periods = 1).dropna()
 
 ## Add time dummies
 dummy_full_fd = pd.get_dummies(df_full_fd.index.get_level_values(1))
@@ -140,7 +141,7 @@ def fTestWeakInstruments(y, fitted_full, fitted_reduced, dof = 4):
     
     return f_stat
 
-def sargan(resids, x, z, nendog = 1):
+def sargan(resids, z, nendog = 1):
     '''Function performs a sargan test (no heteroskedasity) to check
         the validity of the overidentification restrictions. H0: 
         overidentifying restrictions hold.
@@ -154,7 +155,7 @@ def sargan(resids, x, z, nendog = 1):
     name = 'Sargan\'s test of overidentification'
 
     eps = resids.values[:,None]
-    u = annihilate(eps, pd.concat([x,z],axis = 1))
+    u = annihilate(eps, z)
     stat = nobs * (1 - (u.T @ u) / (eps.T @ eps)).squeeze()
     null = 'The overidentification restrictions are valid'
 
@@ -172,7 +173,7 @@ vecAdjR2 = np.vectorize(adjR2)
 #----------------------------------------------
 '''-----------------------------------------''' 
 
-def analysesFDIV(df, var_ls, righthand_x, righthand_z, time_dummies):
+def analysesFDIV(var_ls, df, righthand_z, time_dummies):
     ''' Performs a FDIV linear model. The second stage takes for dependent variables:
         1) Charge-off rates, 2) Loan Loss allowances, 3) RWA/TA 4) Loan loss provisions.
         The method also correct for unobserved heterogeneity (see Wooldridge p.). Only 
@@ -182,7 +183,6 @@ def analysesFDIV(df, var_ls, righthand_x, righthand_z, time_dummies):
         
     # Prelims
     ## Setup the x and z variable vectors
-    vars_x = righthand_x.split(' + ')
     vars_z = righthand_z.split(' + ')
     
     ## Number of z variables
@@ -197,9 +197,9 @@ def analysesFDIV(df, var_ls, righthand_x, righthand_z, time_dummies):
     #----------------------------------------------    
     # First check the data on column rank
     ## If not full column rank return empty lists
-    rank_full = np.linalg.matrix_rank(df[vars_x + vars_z + time_dummies.split(' + ')]) 
+    rank_full = np.linalg.matrix_rank(df[vars_z + time_dummies.split(' + ')]) 
     
-    if rank_full != len(vars_x + vars_z + time_dummies.split(' + ')):
+    if rank_full != len(vars_z + time_dummies.split(' + ')):
         return([],[],[],[],[])
       
     #----------------------------------------------
@@ -212,7 +212,7 @@ def analysesFDIV(df, var_ls, righthand_x, righthand_z, time_dummies):
         '''  
                           
     # Estimate G_hat
-    res_step1 = PanelOLS.from_formula(var_ls + ' ~ ' + righthand_x + ' + ' + righthand_z + ' + ' + time_dummies,\
+    res_step1 = PanelOLS.from_formula(var_ls + ' ~ ' + ' + ' + righthand_z + ' + ' + time_dummies,\
                                       data = df).fit(cov_type = 'clustered', cluster_entity = True)
     
     df['G_hat_fd'] = res_step1.fitted_values
@@ -229,7 +229,7 @@ def analysesFDIV(df, var_ls, righthand_x, righthand_z, time_dummies):
     
     for dep_var in dep_var_step2:
         # without correction unobserved heterogeneity
-        res_step2a = PanelOLS.from_formula(dep_var + ' ~ ' + righthand_x +\
+        res_step2a = PanelOLS.from_formula(dep_var + ' ~ ' +\
                      ' + ' + 'G_hat_fd' + ' + ' + time_dummies, data = df).\
                      fit(cov_type = 'clustered', cluster_entity = True)
         res_step2.append(res_step2a) # append to results list
@@ -253,7 +253,7 @@ def analysesFDIV(df, var_ls, righthand_x, righthand_z, time_dummies):
     if num_z == 1:
         f_test_step1 = res_step1.pvalues[vars_z].values
     else:
-        res_step1b = PanelOLS.from_formula(var_ls + ' ~ ' + righthand_x + ' + ' + time_dummies, data = df).fit(cov_type = 'clustered', cluster_entity = True)
+        res_step1b = PanelOLS.from_formula(var_ls + ' ~ ' + ' + ' + time_dummies, data = df).fit(cov_type = 'clustered', cluster_entity = True)
         f_test_step1 = fTestWeakInstruments(df[var_ls], res_step1.fitted_values, res_step1b.fitted_values, num_z)
     
     #----------------------------------------------
@@ -263,7 +263,7 @@ def analysesFDIV(df, var_ls, righthand_x, righthand_z, time_dummies):
 
     pvals_ls_endo = []
     for dep_var in dep_var_step2:
-        res_endo = PanelOLS.from_formula(dep_var + ' ~ ' + righthand_x +\
+        res_endo = PanelOLS.from_formula(dep_var + ' ~ ' +\
                        ' + ' + var_ls + ' + ' + 'resid_step1' + ' + ' + time_dummies, data = df).\
                        fit(cov_type = 'clustered', cluster_entity = True)
         pvals_ls_endo.append(res_endo.pvalues['resid_step1'])
@@ -280,7 +280,7 @@ def analysesFDIV(df, var_ls, righthand_x, righthand_z, time_dummies):
         sargan_res = []
         
         for model in res_step2:
-            oir = sargan(model.resids, df[righthand_x.split(' + ')], df[righthand_z.split(' + ')])
+            oir = sargan(model.resids, df[righthand_z.split(' + ')])
             
             sargan_res.append(oir.pval)
         
@@ -342,24 +342,24 @@ pvals_ls_endo = []
 sargan_res = []
 list_endo_vars = []
 
-for i in range(len(vars_endo)):
-    for data in list_dfs:
-        # First set the time dummies (depends on the subset which ones to take)
-        time_dummies = ['dum{}'.format(year) for year in data.index.get_level_values(1).unique().astype(str).str[:4][1:].tolist()]
-                     
-        # Run the model
-        for z in vars_z:
-            res_step1_load,res_step2_load,f_test_step1_load,pvals_ls_endo_load,\
-            sargan_res_load, endo_var_load =\
-            analysesFDIV(data, vars_endo[i], righthand_x, z,  time_dummies)
-            
-            # Save the models
-            res_step1.append(res_step1_load)
-            res_step2.append(res_step2_load)
-            f_test_step1.append(f_test_step1_load)
-            pvals_ls_endo.append(pvals_ls_endo_load)
-            sargan_res.append(sargan_res_load)
-            list_endo_vars.append(endo_var_load)
+input_gen = itertools.product(vars_endo, list_dfs, vars_z)
+
+for product in input_gen:
+    # First set the time dummies (depends on the subset which ones to take)
+    time_dummies = ['dum{}'.format(year) for year in product[1].index.get_level_values(1).unique().astype(str).str[:4][1:].tolist()]
+                      
+    # Run the model
+    res_step1_load,res_step2_load,f_test_step1_load,pvals_ls_endo_load,\
+    sargan_res_load, endo_var_load =\
+    analysesFDIV(*product, time_dummies)
+    
+    # Save the models
+    res_step1.append(res_step1_load)
+    res_step2.append(res_step2_load)
+    f_test_step1.append(f_test_step1_load)
+    pvals_ls_endo.append(pvals_ls_endo_load)
+    sargan_res.append(sargan_res_load)
+    list_endo_vars.append(endo_var_load)
 
 #----------------------------------------------
 # Set things up for nice tables
@@ -371,8 +371,8 @@ def split_list(a_list):
     return a_list[:half], a_list[half:]
 
 ## Determine regression order
-reg_order_step1 = vars_z[0].split(' + ') + righthand_x.split(' + ')
-reg_order_step2 = ['G_hat_fd'] + righthand_x.split(' + ')
+reg_order_step1 = vars_z[0].split(' + ')
+reg_order_step2 = ['G_hat_fd']
 
 #----------------------------------------------
 '''CHANGE IN CASE OF MULTIPLE OPTIONS FOR Z'''
@@ -584,7 +584,7 @@ table_step2_lstotta.index = [dict_var_names[key] for key in table_step2_lstotta.
 #----------------------------------------------
 
 # Save the tables
-path = r'Results\FE_IV_v5.xlsx'
+path = r'Results\FD_IV_v5_novars.xlsx'
 
 
 with pd.ExcelWriter(path) as writer:

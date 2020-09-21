@@ -22,7 +22,8 @@ import seaborn as sns
 sns.set(style = 'whitegrid', font_scale = 1.75, palette = 'Greys_d')
 
 import os
-os.chdir(r'X:\My Documents\PhD\Materials_papers\1_Working_paper_loan_sales')
+#os.chdir(r'X:\My Documents\PhD\Materials_papers\1_Working_paper_loan_sales')
+os.chdir(r'D:\RUG\PhD\Materials_papers\1_Working_paper_loan_sales')
 
 from scipy import stats
 
@@ -36,8 +37,19 @@ df.set_index(['IDRSSD','date'],inplace=True)
 
 #------------------------------------------
 # Split the dataframes on securitizer and non-securitizers
+# Note: in the second set of dfs securitizers are banks that ever securitized. 
+# Note: 
+sec_idrssd = df[df.ls_sec_tot > 0].index.get_level_values(0).unique().tolist() #304
+ls_idrssd = df[df.ls_tot > 0].index.get_level_values(0).unique().tolist() #1573
+
 df_sec = df[df.ls_sec_tot > 0]
 df_nonsec = df[df.ls_sec_tot == 0]
+
+df_sec_ever = df[df.index.get_level_values(0).isin(sec_idrssd)]
+df_nonsec_ever = df[~df.index.get_level_values(0).isin(sec_idrssd)]
+
+df_ls_ever = df[df.index.get_level_values(0).isin(ls_idrssd)]
+df_nonls_ever = df[~df.index.get_level_values(0).isin(ls_idrssd)]
 
 #------------------------------------------
 # Figure 1: Total securitization (B705 + B711; 1-4 Family residential loans + all other)
@@ -444,3 +456,67 @@ ax.plot(df[df.RCONB557 > 0.0].RCONB557.sum(level = [1,1]).droplevel(level = 0).d
 ax.grid(True)
 
 fig.savefig('Figures\Fig12_off_to_loan_allowances.png')
+
+#-----------------------------------------------
+# Figure 13: Cyclicality charge-off ratio and loan ratio
+## Make variable
+
+choff_sec_ever = (df_sec_ever.net_coffratio_tot_ta.mean(level = [1,1]) * 100).droplevel(level = 0)
+choff_nonsec_ever = (df_nonsec_ever.net_coffratio_tot_ta.mean(level = [1,1]) * 100).droplevel(level = 0)
+choff_ls_ever = (df_ls_ever.net_coffratio_tot_ta.mean(level = [1,1]) * 100).droplevel(level = 0)
+choff_nonls_ever = (df_nonls_ever.net_coffratio_tot_ta.mean(level = [1,1]) * 100).droplevel(level = 0)
+
+loanratio_sec_ever = (df_sec_ever.loanratio.mean(level = [1,1]) * 100).droplevel(level = 0)
+loanratio_nonsec_ever = (df_nonsec_ever.loanratio.mean(level = [1,1]) * 100).droplevel(level = 0)
+loanratio_ls_ever = (df_ls_ever.loanratio.mean(level = [1,1]) * 100).droplevel(level = 0)
+loanratio_nonls_ever = (df_nonls_ever.loanratio.mean(level = [1,1]) * 100).droplevel(level = 0)
+
+
+fig, ax = plt.subplots(figsize=(12, 8))
+plt.title('Mean Charge-off Ratio')
+ax.set(xlabel='Year', ylabel = 'in %')
+#ax.plot(choff_sec_ever, linestyle = '-', color = 'black', label = 'Securitizers')
+#ax.plot(choff_nonsec_ever, linestyle = '-.', color = 'black', label = 'Non-Securitizers')
+ax.plot(choff_ls_ever, linestyle = '-', color = 'red', label = 'Charge-offs; Loan Sellers')
+ax.plot(choff_nonls_ever, linestyle = '-.', color = 'red', label = 'Charge-offs; Non-Loan Sellers')
+#ax2 = ax.twinx()
+#ax2.plot(loanratio_sec_ever, linestyle = '-', color = 'green', label = 'Loan Ratio; Securitizers')
+#ax2.plot(loanratio_nonsec_ever, linestyle = '-.', color = 'green', label = 'Loan Ratio; Non-Securitizers')
+#ax2.plot(loanratio_ls_ever, linestyle = '-', color = 'blue', label = 'Loan Ratio; Loan Sellers')
+#ax2.plot(loanratio_nonls_ever, linestyle = '-.', color = 'blue', label = 'Loan Ratio; Non-Loan Sellers')
+ax.legend()
+
+h1, l1 = ax.get_legend_handles_labels()
+h2, l2 = ax2.get_legend_handles_labels()
+ax.legend(h1+h2, l1+l2, loc=1)
+
+
+# Check the changes (first difference)
+choff_sec_ever_diff = (df_sec_ever.net_coffratio_tot_ta.mean(level = [1,1]) * 100).droplevel(level = 0).diff().dropna()
+choff_nonsec_ever_diff = (df_nonsec_ever.net_coffratio_tot_ta.mean(level = [1,1]) * 100).droplevel(level = 0).diff().dropna()
+choff_ls_ever_diff = (df_ls_ever.net_coffratio_tot_ta.mean(level = [1,1]) * 100).droplevel(level = 0).diff().dropna()
+choff_nonls_ever_diff = (df_nonls_ever.net_coffratio_tot_ta.mean(level = [1,1]) * 100).droplevel(level = 0).diff().dropna()
+
+loanratio_sec_ever_diff = (df_sec_ever.loanratio.mean(level = [1,1]) * 100).droplevel(level = 0).diff().dropna()
+loanratio_nonsec_ever_diff = (df_nonsec_ever.loanratio.mean(level = [1,1]) * 100).droplevel(level = 0).diff().dropna()
+loanratio_ls_ever_diff = (df_ls_ever.loanratio.mean(level = [1,1]) * 100).droplevel(level = 0).diff().dropna()
+loanratio_nonls_ever_diff = (df_nonls_ever.loanratio.mean(level = [1,1]) * 100).droplevel(level = 0).diff().dropna()
+
+fig, ax = plt.subplots(figsize=(12, 8))
+plt.title('Mean Charge-off Ratio (First Difference)')
+ax.set(xlabel='Year', ylabel = 'in %')
+ax.plot(choff_sec_ever_diff, linestyle = '-', color = 'black', label = 'Securitizers')
+ax.plot(choff_nonsec_ever_diff, linestyle = '-.', color = 'black', label = 'Non-Securitizers')
+#ax.plot(choff_ls_ever_diff, linestyle = '-', color = 'red', label = 'Charge-offs; Loan Sellers')
+#ax.plot(choff_nonls_ever_diff, linestyle = '-.', color = 'red', label = 'Charge-offs; Non-Loan Sellers')
+#ax2 = ax.twinx()
+#ax2.plot(loanratio_sec_ever_diff, linestyle = '-', color = 'green', label = 'Loan Ratio; Securitizers')
+#ax2.plot(loanratio_nonsec_ever_diff, linestyle = '-.', color = 'green', label = 'Loan Ratio; Non-Securitizers')
+#ax2.plot(loanratio_ls_ever_diff, linestyle = '-', color = 'blue', label = 'Loan Ratio; Loan Sellers')
+#ax2.plot(loanratio_nonls_ever_diff, linestyle = '-.', color = 'blue', label = 'Loan Ratio; Non-Loan Sellers')
+ax.legend()
+
+h1, l1 = ax.get_legend_handles_labels()
+h2, l2 = ax2.get_legend_handles_labels()
+ax.legend(h1+h2, l1+l2, loc=1)
+

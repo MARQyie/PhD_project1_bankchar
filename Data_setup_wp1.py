@@ -1,12 +1,12 @@
 #------------------------------------------
 # Setup dataset US Call reports
 # Mark van der Plaat
-# August 2019 
+# August 2019; data update: Mar 2020  
 
 ''' 
     This document sets up the dataset for further analyses for working paper #1
 
-    Data used: US Call reports 2001-û9 year-end
+    Data used: US Call reports 2001-2019 year-end
     Only insured, commercial banks are taken
     ''' 
 #------------------------------------------
@@ -19,7 +19,8 @@ import seaborn as sns
 sns.set(style='white',font_scale=1.5)
 
 import os
-os.chdir(r'X:\My Documents\PhD\Materials_papers\1_Working_paper_loan_sales')
+#os.chdir(r'X:\My Documents\PhD\Materials_papers\1_Working_paper_loan_sales')
+os.chdir(r'D:\RUG\PhD\Materials_papers\1_Working_paper_loan_sales')
 
 import csv
 
@@ -27,8 +28,10 @@ import csv
 # Set Prelims 
 start = 2001
 end = 2020
-path_info = r'X:/My Documents/Data/Data_call_reports_fed'
-path_call = r'X:/My Documents/Data/Data_call_reports_FFIEC2'
+#path_info = r'X:/My Documents/Data/Data_call_reports_fed'
+#path_call = r'X:/My Documents/Data/Data_call_reports_FFIEC2'
+path_info = r'D:/RUG/Data/Data_call_reports_fed'
+path_call = r'D:/RUG/Data/Data_call_reports_FFIEC2'
 
 #------------------------------------------
 # Set filenames

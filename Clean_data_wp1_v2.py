@@ -8,7 +8,8 @@ import pandas as pd
 import numpy as np
 
 import os
-os.chdir(r'X:\My Documents\PhD\Materials_papers\1_Working_paper_loan_sales')
+#os.chdir(r'X:\My Documents\PhD\Materials_papers\1_Working_paper_loan_sales')
+os.chdir(r'D:\RUG\PhD\Materials_papers\1_Working_paper_loan_sales')
 
 ## Plotting packages
 import matplotlib.pyplot as plt
@@ -35,7 +36,7 @@ vars_needed = ['provratio','rwata','net_coffratio_tot_ta',\
                'allowratio_tot_ta','ls_tot_ta','size',\
                'RC7205','loanratio','roa','depratio','comloanratio','RC2170',\
                'num_branch', 'RIAD4150', 'perc_limited_branch',\
-               'unique_states','distance', 'nim','nnim','mortratio','consloanratio',\
+               'unique_states','nim','nnim','mortratio','consloanratio',\
                'agriloanratio','loanhhi']
 
 #----------------------------------------------
@@ -172,5 +173,6 @@ for var in vars_needed:
     
 #------------------------------------------
 ## Save df
-os.chdir(r'X:\My Documents\PhD\Materials_papers\1_Working_paper_loan_sales')
+#os.chdir(r'X:\My Documents\PhD\Materials_papers\1_Working_paper_loan_sales')
+os.chdir(r'D:\RUG\PhD\Materials_papers\1_Working_paper_loan_sales')
 df.to_csv('Data\df_wp1_clean.csv')

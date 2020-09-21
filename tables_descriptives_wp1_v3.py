@@ -21,18 +21,21 @@ import seaborn as sns
 sns.set(style='white',font_scale=1.5)
 
 import os
-os.chdir(r'X:\My Documents\PhD\Materials_papers\1_Working_paper_loan_sales')
+#os.chdir(r'X:\My Documents\PhD\Materials_papers\1_Working_paper_loan_sales')
+os.chdir(r'D:\RUG\PhD\Materials_papers\1_Working_paper_loan_sales')
 
 #------------------------------------------
 # Load df
-df = pd.read_csv('Data\df_wp1_clean.csv', index_col = 0 )
+df = pd.read_csv('Data\df_wp1_clean.csv', index_col = 0)
 
 # Make multi index
 df.date = pd.to_datetime(df.date.astype(str).str.strip())
 df.set_index(['IDRSSD','date'],inplace=True)
 
+'''OLD
 # Drop missings on distance
 df.dropna(subset = ['distance'], inplace = True)
+''' 
 
 # Dummy variable for loan sales
 df['dum_ls'] = (df.ls_tot > 0) * 1
@@ -97,12 +100,12 @@ list_multicolumns = [('Total Sample', 'Mean'), ('Total Sample', 'SD'),\
 # Table 1: Variables Call Reports
 ## Set labels and variables
 vars_call = ['RC2170bln', 'ls_tot_ta','dum_ls','net_coffratio_tot_ta',\
-             'allowratio_tot_ta','rwata','RC7204','loanratio','roa_a','depratio',\
+             'allowratio_tot_ta','rwata','RC7204','loanratio','roa','depratio',\
              'comloanratio','mortratio','consloanratio','loanhhi','bhc','RIAD4150']
 
 labels_call = ['Total Assets (\$ bln)', 'Total Loan Sales-to-TA',\
                'Dummy Loan Sales','Total Net Charge-offs-to-TA','Total Allowances-to-TA', \
-               'RWA/TA','Regulatory Leverage Ratio', 'Loans-to-TA','$ROA_a$',\
+               'RWA/TA','Regulatory Leverage Ratio', 'Loans-to-TA','ROA',\
                'Deposit Ratio','Commercial Loan Ratio',\
                'Mortgage Ratio','Consumer Loan Ratio','Loan HHI','BHC Indicator','Number of Employees']
 

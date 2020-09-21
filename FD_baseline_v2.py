@@ -8,7 +8,8 @@ import pandas as pd
 import numpy as np
 
 import os
-os.chdir(r'X:\My Documents\PhD\Materials_papers\1_Working_paper_loan_sales')
+#os.chdir(r'X:\My Documents\PhD\Materials_papers\1_Working_paper_loan_sales')
+os.chdir(r'D:\RUG\PhD\Materials_papers\1_Working_paper_loan_sales')
 
 # Import method for OLS
 from linearmodels import PanelOLS
@@ -48,7 +49,7 @@ from scipy import stats
 #----------------------------------------------
 
 # Set the righthand side of the formulas used in analysesFDIV
-righthand_x = r'RC7204 + loanratio + roa_a + depratio + comloanratio + mortratio + consloanratio + loanhhi + costinc + RC2170 + bhc'
+righthand_x = r'RC7204 + loanratio + roa + depratio + comloanratio + mortratio + consloanratio + loanhhi + costinc + RC2170 + bhc'
 vars_endo = ['dum_ls','ls_tot_ta'] 
 vars_z = ['RIAD4150 + perc_limited_branch'] # In list in case multiple instruments are needed to be run
 dep_vars = ['net_coffratio_tot_ta','allowratio_tot_ta','rwata']
@@ -128,7 +129,7 @@ def analysesFD(df, var_ls, righthand_x, time_dummies):
     vars_x = righthand_x.split(' + ')
      
     ## Vector of dependent variables
-    dep_var_step2 = ['net_coffratio_tot_ta','allowratio_tot_ta','rwata']
+    dep_vars = ['net_coffratio_tot_ta','allowratio_tot_ta','rwata']
     
     ## Make a string of the time dummy vector
     time_dummies = ' + '.join(time_dummies)
@@ -136,7 +137,7 @@ def analysesFD(df, var_ls, righthand_x, time_dummies):
     #----------------------------------------------    
     # First check the data on column rank
     ## If not full column rank return empty lists
-    rank_full = np.linalg.matrix_rank(df[vars_x+ time_dummies.split(' + ')]) 
+    rank_full = np.linalg.matrix_rank(df[vars_x + time_dummies.split(' + ')]) 
     
     if rank_full != len(vars_x + time_dummies.split(' + ')):
         return([],[],[],[])

@@ -6,11 +6,13 @@
 # Import packages
 import pandas as pd
 import numpy as np
+import itertools
+import multiprocessing as mp # For parallelization
+from joblib import Parallel, delayed # For parallelization
 
 import os
 #os.chdir(r'X:\My Documents\PhD\Materials_papers\1_Working_paper_loan_sales')
 os.chdir(r'D:\RUG\PhD\Materials_papers\1_Working_paper_loan_sales')
-
 
 # Import method for OLS
 from linearmodels import PanelOLS
@@ -22,8 +24,10 @@ from linearmodels.utility import WaldTestStatistic
 # Import a method to make nice tables
 from Code_docs.help_functions.summary3 import summary_col
 
+'''OLD
 # Used for the partial R2s
 from scipy import stats
+'''
 
 #--------------------------------------------
 ''' This script estimates the treatment effect of loan sales on credit risk
@@ -64,10 +68,11 @@ from scipy import stats
 #----------------------------------------------
 
 # Set the righthand side of the formulas used in analysesFDIV
-righthand_x = r'RC7204 + loanratio + roa_a + depratio + comloanratio + mortratio + consloanratio + loanhhi + costinc + RC2170 + bhc'
+righthand_x = r'loanratio + depratio + comloanratio + mortratio + consloanratio + loanhhi + costinc + RC2170 + bhc'
 vars_endo = ['dum_ls','ls_tot_ta'] 
 vars_z = ['RIAD4150 + perc_limited_branch'] # In list in case multiple instruments are needed to be run
 dep_vars = ['net_coffratio_tot_ta','allowratio_tot_ta','rwata']
+num_cores = mp.cpu_count()
 
 #----------------------------------------------
 # Load data and add needed variables
@@ -96,7 +101,7 @@ df_full['bhc'] = np.exp(df_full.bhc) - 1
 df_full = df_full.transform(lambda df: np.log(1 + df))
 
 ## Take the first differences
-df_full_fd = df_full.groupby(df_full.index.get_level_values(0)).apply(lambda x: x - np.mean(x)).dropna()
+df_full_fd = df_full.groupby(df_full.index.get_level_values(0)).diff(periods = 1).dropna()
 
 ## Add time dummies
 dummy_full_fd = pd.get_dummies(df_full_fd.index.get_level_values(1))
@@ -172,7 +177,7 @@ vecAdjR2 = np.vectorize(adjR2)
 #----------------------------------------------
 '''-----------------------------------------''' 
 
-def analysesFDIV(df, var_ls, righthand_x, righthand_z, time_dummies):
+def analysesFDIV(var_ls, df, righthand_z, righthand_x, time_dummies):
     ''' Performs a FDIV linear model. The second stage takes for dependent variables:
         1) Charge-off rates, 2) Loan Loss allowances, 3) RWA/TA 4) Loan loss provisions.
         The method also correct for unobserved heterogeneity (see Wooldridge p.). Only 
@@ -342,24 +347,24 @@ pvals_ls_endo = []
 sargan_res = []
 list_endo_vars = []
 
-for i in range(len(vars_endo)):
-    for data in list_dfs:
-        # First set the time dummies (depends on the subset which ones to take)
-        time_dummies = ['dum{}'.format(year) for year in data.index.get_level_values(1).unique().astype(str).str[:4][1:].tolist()]
-                     
-        # Run the model
-        for z in vars_z:
-            res_step1_load,res_step2_load,f_test_step1_load,pvals_ls_endo_load,\
-            sargan_res_load, endo_var_load =\
-            analysesFDIV(data, vars_endo[i], righthand_x, z,  time_dummies)
-            
-            # Save the models
-            res_step1.append(res_step1_load)
-            res_step2.append(res_step2_load)
-            f_test_step1.append(f_test_step1_load)
-            pvals_ls_endo.append(pvals_ls_endo_load)
-            sargan_res.append(sargan_res_load)
-            list_endo_vars.append(endo_var_load)
+input_gen = itertools.product(vars_endo, list_dfs, vars_z)
+
+for product in input_gen:
+    # First set the time dummies (depends on the subset which ones to take)
+    time_dummies = ['dum{}'.format(year) for year in product[1].index.get_level_values(1).unique().astype(str).str[:4][1:].tolist()]
+                      
+    # Run the model
+    res_step1_load,res_step2_load,f_test_step1_load,pvals_ls_endo_load,\
+    sargan_res_load, endo_var_load =\
+    analysesFDIV(*product, righthand_x, time_dummies)
+    
+    # Save the models
+    res_step1.append(res_step1_load)
+    res_step2.append(res_step2_load)
+    f_test_step1.append(f_test_step1_load)
+    pvals_ls_endo.append(pvals_ls_endo_load)
+    sargan_res.append(sargan_res_load)
+    list_endo_vars.append(endo_var_load)
 
 #----------------------------------------------
 # Set things up for nice tables
@@ -584,7 +589,7 @@ table_step2_lstotta.index = [dict_var_names[key] for key in table_step2_lstotta.
 #----------------------------------------------
 
 # Save the tables
-path = r'Results\FE_IV_v5.xlsx'
+path = r'Results\FD_IV_v5_noendo.xlsx'
 
 
 with pd.ExcelWriter(path) as writer:

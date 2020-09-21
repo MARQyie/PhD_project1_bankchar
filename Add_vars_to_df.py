@@ -1,7 +1,7 @@
 #------------------------------------------
 # Add new variables dataset US Call reports
 # Mark van der Plaat
-# Sep 2019 
+# Sep 2019; data update: Mar 2020 
 
 ''' 
     This document partially cleans the the dataset and add variables 
@@ -21,7 +21,8 @@ import seaborn as sns
 sns.set(style='white',font_scale=1.5)
 
 import os
-os.chdir(r'X:\My Documents\PhD\Materials_papers\1_Working_paper_loan_sales')
+#os.chdir(r'X:\My Documents\PhD\Materials_papers\1_Working_paper_loan_sales')
+os.chdir(r'D:\RUG\PhD\Materials_papers\1_Working_paper_loan_sales')
 
 #import sys # to use the help functions needed
 #sys.path.insert(1, r'X:\My Documents\PhD\Coding_docs\Help_functions')
@@ -280,8 +281,7 @@ df['roa_alt_tilde'] = (df.RIAD4301 / df.RC2170) + (df.RIAD4230 / df.RC2170)\
 import statsmodels.formula.api as sm
     
 res_roa = sm.ols(formula = 'roa ~ 1 + roa_tilde', data = df).fit()   
-df['roa_a'] = res_roa.fittedvalues
-    
+df['roa_a'] = res_roa.fittedvalues  
 
 ## Net interest margin
 df['nim'] = (df.RIAD4074 / df.RC2170).replace(np.inf, 0)
@@ -325,30 +325,32 @@ df['intexpsub'] = (df.RIAD4200 / df.RIAD4073).replace(np.inf, 0)
 #-------------------------------------------------
 # Add Summary of Deposit data
 from Code_docs.help_functions.Proxies_org_complex_banks import LimitedServiceBranches,\
-     spatialComplexity, noBranchBank, readSODFiles, maxDistanceBranches
+     spatialComplexity, noBranchBank, readSODFiles
 
 ## Number of limited service, full service and total branches
-df_branches = LimitedServiceBranches(2001,2019)
+df_branches = LimitedServiceBranches(2001,2020)
 df_branches.reset_index(inplace = True)
 
 ## Number of States Active
-df_complex = spatialComplexity(2001,2019)
+df_complex = spatialComplexity(2001,2020)
 df_complex = df_complex.reset_index()
 
 ## No Bank Branches
-df_nobranch = noBranchBank(2001,2019)
+df_nobranch = noBranchBank(2001,2020)
 df_nobranch = df_nobranch.reset_index()
 
+''' OLD
 ## Mean Distance Branch, Head quarters
 df_distance = maxDistanceBranches()
 df_distance = df_distance.reset_index()
 df_distance.rename(columns = {0:'distance'}, inplace = True)
+'''
 
 ## Add the dfs to the dataframe
 df = df.merge(df_branches, on = ['IDRSSD', 'date'], how = 'left')
 df = df.merge(df_complex, on = ['IDRSSD', 'date'], how = 'left')
 df = df.merge(df_nobranch, on = ['IDRSSD', 'date'], how = 'left')
-df = df.merge(df_distance, on = ['IDRSSD', 'date'], how = 'left')
+#df = df.merge(df_distance, on = ['IDRSSD', 'date'], how = 'left')
 
 ## Drop banks that have no known number of branches
 df.dropna(subset = ['num_branch'], inplace = True)
@@ -359,6 +361,7 @@ df.rename(columns = {'Financial Institution Name':'name'}, inplace = True)
 
 #------------------------------------------
 ## Save df
-os.chdir(r'X:\My Documents\PhD\Materials_papers\1_Working_paper_loan_sales')
+#os.chdir(r'X:\My Documents\PhD\Materials_papers\1_Working_paper_loan_sales')
+os.chdir(r'D:\RUG\PhD\Materials_papers\1_Working_paper_loan_sales')
 df.to_csv('Data\df_wp1_newvars.csv')
 

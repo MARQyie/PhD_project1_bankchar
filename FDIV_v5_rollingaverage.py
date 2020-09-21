@@ -9,9 +9,8 @@ import pandas as pd
 import numpy as np
 
 import os
-os.chdir(r'X:\My Documents\PhD\Materials_papers\1_Working_paper_loan_sales')
-#os.chdir(r'D:\1_Working_paper_loan_sales')
-
+#os.chdir(r'X:\My Documents\PhD\Materials_papers\1_Working_paper_loan_sales')
+os.chdir(r'D:\RUG\PhD\Materials_papers\1_Working_paper_loan_sales')
 
 # Import method for OLS
 from linearmodels import PanelOLS
@@ -72,7 +71,7 @@ from itertools import compress
 #----------------------------------------------
 
 # Set the righthand side of the formulas used in analysesFDIV
-righthand_x = r'RC7204 + loanratio + roa_a + depratio + comloanratio + mortratio + consloanratio + loanhhi + costinc + RC2170 + bhc'
+righthand_x = r'RC7204 + loanratio + roa + depratio + comloanratio + mortratio + consloanratio + loanhhi + costinc + RC2170 + bhc'
 vars_endo = ['ls_tot_ta'] 
 vars_z = ['RIAD4150 + perc_limited_branch'] # In list in case multiple instruments are needed to be run
 dep_vars = ['net_coffratio_tot_ta','allowratio_tot_ta','rwata']
@@ -373,9 +372,9 @@ dict_var_names = {'':'',
 
 # Prelim
 year_labels = [list_yearindex[i+int(np.ceil(window/2))] for i in range(t-window+1)]
-c = 1.645
+c = 1.645 #1.960
 
-var_list = r'G_hat_fd + RC7204 + loanratio + roa_a + depratio + comloanratio + mortratio + consloanratio + loanhhi + costinc + RC2170 + bhc'.split(' + ')
+var_list = r'G_hat_fd + RC7204 + loanratio + roa + depratio + comloanratio + mortratio + consloanratio + loanhhi + costinc + RC2170 + bhc'.split(' + ')
 depvar_list = ['LCO','LLA','RWATA']
 
 # Plot
@@ -403,7 +402,7 @@ for k in range(len(params)):
         
         ## Shaded areas
         ax_limits = ax.get_ylim() # get ax limits
-        ax.bar(bar_year,(ax_limits[1] + abs(ax_limits[0])),width = 3.65e2, bottom = ax_limits[0], color = 'dimgrey', alpha = 0.2, linewidth = 0)
+        ax.bar(bar_year,(ax_limits[1] + abs(ax_limits[0])),width = 3.655e2, bottom = ax_limits[0], color = 'dimgrey', alpha = 0.2, linewidth = 0)
         #ax.fill_between(year_labels, ax_limits[1], ax_limits[0], where = test_estimates, step = 'mid', color = 'dimgrey', alpha = 0.2)
         
         ## Accentuate y = 0.0 

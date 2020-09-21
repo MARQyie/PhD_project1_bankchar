@@ -14,11 +14,12 @@ sns.set_palette('Greys')
 sns.set_context('notebook')
 
 import os
-os.chdir(r'X:\My Documents\PhD\Materials_papers\1_Working_paper_loan_sales')
+#os.chdir(r'X:\My Documents\PhD\Materials_papers\1_Working_paper_loan_sales')
+os.chdir(r'D:\RUG\PhD\Materials_papers\1_Working_paper_loan_sales')
 
 #------------------------------------------
 # Load df
-df = pd.read_csv('Data/df_wp1_clean.csv', index_col = 0)
+df = pd.read_csv('Data/df_wp1_main.csv')
 
 # Make multi index
 df.set_index(['IDRSSD','date'],inplace=True)
@@ -26,8 +27,8 @@ df.set_index(['IDRSSD','date'],inplace=True)
 #------------------------------------------
 # Make table
 ## Count rows per year (banks with securitized loans sales, non-securitized loan sales, both and nothing)
-count_lssec = df[df.ls_sec_tot > 0].groupby(level = [1,1]).size()
-count_lsnonsec = df[df.ls_nonsec_tot > 0].groupby(level = [1,1]).size()
+count_lssec = df[df.ls_sec > 0].groupby(level = [1,1]).size()
+count_lsnonsec = df[df.ls_nonsec > 0].groupby(level = [1,1]).size()
 count_ls = df[df.ls_tot > 0].groupby(level = [1,1]).size()
 count_non = df[df.ls_tot == 0].groupby(level = [1,1]).size()
 
@@ -48,8 +49,8 @@ prec_ls = count_ls.divide(count_sum) * 100
 ## Make dataframe
 table_count = pd.DataFrame([count_lssec,perc_lssec,count_lsnonsec,count_ls,\
                             prec_ls,count_non,count_sum],\
-                           index = ['Securitized Loan Sales','Securitized Loan Sales (in %)',\
-                                    'Non-securitized Loan Sales','Total Loan Sales','Total Loan Sales (in %)',\
+                           index = ['Securitization','Securitization (in %)',\
+                                    'Loan Sales','Total Loan Sales','Total Loan Sales (in %)',\
                                     'No Loan Sales','Total']).T
 
 ## Make total row
@@ -76,7 +77,7 @@ table_count.iloc[:,[0,2,3,5,6]] = table_count.iloc[:,[0,2,3,5,6]].astype(int)
 table_count.reset_index(inplace = True)
 
 ## Fix the date column
-table_count.iloc[:-1,0] = table_count.iloc[:-1,0].str[:4]
+table_count.iloc[:-1,0] = table_count.iloc[:-1,0]
 table_count.rename(columns = {'date':''},inplace = True)
 
 #----------------------------------------
