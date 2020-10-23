@@ -1,14 +1,19 @@
 #------------------------------------------
 # IV treatment model for first working paper
+# Rolling Average estimation
 # Mark van der Plaat
 # January 2020
 
 # Import packages
 import pandas as pd
 import numpy as np
-import itertools
 import multiprocessing as mp # For parallelization
 from joblib import Parallel, delayed # For parallelization
+import matplotlib.pyplot as plt
+import seaborn as sns
+sns.set(style = 'white', font_scale = 2, palette = 'Greys_d')
+from itertools import compress
+import datetime
 
 import os
 #os.chdir(r'X:\My Documents\PhD\Materials_papers\1_Working_paper_loan_sales')
@@ -20,14 +25,6 @@ from linearmodels import PanelOLS
 # Import packages for the Sargan-Hausman test
 from linearmodels.iv._utility import annihilate
 from linearmodels.utility import WaldTestStatistic
-
-# Import a method to make nice tables
-from Code_docs.help_functions.summary3 import summary_col
-
-'''OLD
-# Used for the partial R2s
-from scipy import stats
-'''
 
 #--------------------------------------------
 ''' This script estimates the treatment effect of loan sales on credit risk
@@ -71,10 +68,13 @@ from scipy import stats
 
 # Set the righthand side of the formulas used in analysesFDIV
 righthand_x = r'reg_cap + loanratio + roa + depratio + comloanratio + mortratio + consloanratio + loanhhi + costinc + size + bhc'
-vars_endo = 'ls_tot' 
-vars_z = 'log_empl + perc_limited_branch' # In list in case multiple instruments are needed to be run
+vars_endo = 'credex_tot' 
+vars_z = 'log_empl + perc_limited_branch' 
 dep_vars = ['net_coff_tot','npl','rwata']
 num_cores = mp.cpu_count()
+
+# Estimation window
+window = 7
 
 #----------------------------------------------
 # Load data and add needed variables
@@ -116,6 +116,7 @@ dummy_fd = pd.get_dummies(df_fd.index.get_level_values(1))
 col_dummy = ['dum' + dummy for dummy in dummy_fd.columns.astype(str).str[:4].tolist()]
 dummy_fd = pd.DataFrame(np.array(dummy_fd), index = df_fd.index, columns = col_dummy)
 df_fd = pd.concat([df_fd, dummy_fd], axis = 1)
+df_fd = df_fd[df_fd.index.get_level_values(1) < pd.Timestamp(2017,12,31)]
 
 #---------------------------------------------------
 # Load the necessary test functions
@@ -188,7 +189,7 @@ def analysesFDIV(dep_var, var_ls, df, righthand_z, righthand_x):
     num_z = righthand_z.count('+') + 1
       
     ## Make timedummies and set a string of the time dummy vector
-    time_dummies_list_step1 = ['dum{}'.format(year) for year in df.index.get_level_values(1).unique().astype(str).str[:4][1:].tolist()]
+    time_dummies_list_step1 = ['dum{}'.format(year) for year in df.index.get_level_values(1).unique().astype(str).str[:4][2:].tolist()]
     time_dummies_step1 = ' + '.join(time_dummies_list_step1)
     time_dummies_step2 = time_dummies_step1
     '''
@@ -214,7 +215,7 @@ def analysesFDIV(dep_var, var_ls, df, righthand_z, righthand_x):
         '''  
                           
     # Estimate G_hat
-    res_step1 = PanelOLS.from_formula(var_ls + ' ~ ' + righthand_x + ' + ' + righthand_z + ' + ' + time_dummies_step1  + ' + 1',\
+    res_step1 = PanelOLS.from_formula(var_ls + ' ~ ' + righthand_x + ' + ' + righthand_z + ' + ' + time_dummies_step1   + ' + 1',\
                                       data = df).fit(cov_type = 'clustered', cluster_entity = True)
     
     df['G_hat_fd'] = res_step1.fitted_values
@@ -228,7 +229,7 @@ def analysesFDIV(dep_var, var_ls, df, righthand_z, righthand_x):
         2b we include a correction for unobserved heteroskedasticity.
         '''
     res_step2 = PanelOLS.from_formula(dep_var + ' ~ ' + 'G_hat_fd' + ' + ' + righthand_x +\
-                     ' + ' + time_dummies_step2 + ' + 1', data = df).\
+                     ' + ' + time_dummies_step2   + ' + 1', data = df).\
                      fit(cov_type = 'clustered', cluster_entity = True)    
         
     ''' If we want to lag the independent variables:    
@@ -294,11 +295,15 @@ def analysesFDIV(dep_var, var_ls, df, righthand_z, righthand_x):
 #----------------------------------------------
 #----------------------------------------------
 
+# Setup parameter values to loop over
+t = df_fd.index.get_level_values(1).nunique()
+list_yearindex = df.index.get_level_values(1).unique().values
+
 #----------------------------------------------
 # Run models
 #----------------------------------------------
 if __name__ == '__main__': 
-    step1, step2, f, endo, sargan_res = zip(*Parallel(n_jobs = num_cores)(delayed(analysesFDIV)(dep_var, vars_endo, df_fd, vars_z, righthand_x) for dep_var in dep_vars))
+    step1, step2, f, endo, sargan_res = zip(*Parallel(n_jobs = num_cores)(delayed(analysesFDIV)(dep_var, vars_endo, df_fd[df_fd.index.get_level_values(1).isin(list_yearindex[year_vec:year_vec+window])], vars_z, righthand_x) for dep_var in dep_vars for year_vec in range(1,t-window + 2)))
 
 #----------------------------------------------
 # Save
@@ -316,10 +321,10 @@ def step1ToCSV(table1, fval, i):
     ## Add some statistics as columns to the main table
     main_table1['nobs'] = table1.nobs
     main_table1['rsquared'] = table1.rsquared
-    main_table1['f'] = fval
+    main_table1['f'] = float(fval)
     
     ## Save to csv
-    main_table1.to_csv('Results\Main\Step_1\Step1_main_{}.csv'.format(i))
+    main_table1.to_csv('Robustness_checks\Rolling_average\Step_1\Step1_ra_{}.csv'.format(i))
     
 ## Run
 for table1, fval, i in zip(step1, f, range(len(f))):
@@ -338,11 +343,101 @@ def step2ToCSV(table2, endo_val, sargan_val, i):
     main_table2['nobs'] = table2.nobs
     main_table2['rsquared'] = table2.rsquared
     main_table2['endo'] = endo_val
-    main_table2['sargan'] = sargan_val
+    if sargan_val:
+        main_table2['sargan'] = sargan_val
+    else:
+        main_table2['sargan'] = np.nan
     
     ## Save to csv
-    main_table2.to_csv('Results\Main\Step_2\Step2_main_{}.csv'.format(i))
+    main_table2.to_csv('Robustness_checks\Rolling_average\Step_2\Step2_ra_{}.csv'.format(i))
 
 ## Run
 for table2, endo_val, sargan_val, i in zip(step2, endo, sargan_res, range(len(endo))):
     step2ToCSV(table2, endo_val, sargan_val, i)
+    
+#----------------------------------------------
+#----------------------------------------------
+# Make Figures
+#----------------------------------------------
+#----------------------------------------------
+    
+# Prelims
+## Make list split function
+def chunkIt(seq, num):
+    avg = len(seq) / float(num)
+    out = []
+    last = 0.0
+
+    while last < len(seq):
+        out.append(seq[int(last):int(last + avg)])
+        last += avg
+
+    return out
+
+# Set labels and test vect
+year_labels = [list_yearindex[i+int(np.ceil(window/2)) - 1] for i in range(t-window+1)] #subtract one year for the plots
+tests_all = [(float(fval) < 10) or (oid < 0.05) for fval, oid in zip(f,sargan_res)]
+test_coff, test_npl, test_rwata = chunkIt(tests_all,3)
+
+bar_year_coff = list(compress(year_labels,test_coff)) 
+bar_year_npl = list(compress(year_labels,test_npl)) 
+bar_year_rwata = list(compress(year_labels,test_rwata)) 
+
+var_names = step2[0]._var_names[:12]
+
+## Make plotting function    
+def plotRollingAverage(params, std_errors, depvar, var_name, bar_year):
+    global year_labels
+    
+    ## Prelimns
+    c = 1.645
+    conf_lower = [a - b * c for a,b in zip(params, std_errors)]
+    conf_upper = [a + b * c for a,b in zip(params, std_errors)]
+        
+    ## Plot prelims 
+    fig, ax = plt.subplots(figsize=(12, 8))
+    #plt.title(dict_var_names[var_name])
+    ax.set(xlabel = 'Mid Year', ylabel = 'Parameter Estimate')
+    
+    ## Params
+    ax.plot(year_labels, params)
+    
+    ## Stds
+    ax.fill_between(year_labels, conf_upper, conf_lower, color = 'deepskyblue', alpha = 0.2)
+    
+    ## Shaded areas
+    ax_limits = ax.get_ylim() # get ax limits
+    ax.bar(bar_year,(ax_limits[1] + abs(ax_limits[0])),width = 3.655e2, bottom = ax_limits[0], color = 'dimgrey', alpha = 0.2, linewidth = 0)
+    #ax.fill_between(year_labels, ax_limits[1], ax_limits[0], where = test_estimates, step = 'mid', color = 'dimgrey', alpha = 0.2)
+    
+    ## Accentuate y = 0.0 
+    ax.axhline(0, color = 'orangered', alpha = 0.75)
+    
+    ## Set ax limits
+    ax.set_ylim(ax_limits)
+    ax.set_xlim([year_labels[0],year_labels[-1]])
+    
+    ## Last things to do
+    plt.tight_layout()
+
+    ## Save the figure
+    fig.savefig('Robustness_checks\Rolling_average\Figures\{}\MA_{}_{}.png'.format(depvar,depvar,var_name))  
+
+# Loop over plotting function
+## Get chucks
+coff, npl, rwata = chunkIt(step2,3)
+    
+for p in range(12):
+    ## Get params and stds
+    params_coff = [mod.params[p] for mod in coff]
+    params_npl = [mod.params[p] for mod in npl]
+    params_rwata = [mod.params[p] for mod in rwata]
+    
+    std_errors_coff = [mod.std_errors[p] for mod in coff]
+    std_errors_npl = [mod.std_errors[p] for mod in npl]
+    std_errors_rwata = [mod.std_errors[p] for mod in rwata]
+    
+    # Run models
+    plotRollingAverage(params_coff, std_errors_coff, 'net_coff_tot', var_names[p], bar_year_coff)
+    plotRollingAverage(params_npl, std_errors_npl, 'npl', var_names[p], bar_year_npl)
+    plotRollingAverage(params_rwata, std_errors_rwata, 'rwata', var_names[p], bar_year_rwata)

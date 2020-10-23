@@ -23,7 +23,7 @@ df = pd.read_csv('Data/df_wp1_main.csv')
 #------------------------------------------------------------
 
 # prelims
-vars_needed = ['net_coff_tot','npl','ls_tot','ls_sec', 'ls_nonsec',\
+vars_needed = ['net_coff_tot','npl','rwata','ls_tot','ls_sec', 'ls_nonsec',\
                'credex_tot','credex_sec', 'credex_nonsec',\
                'reg_lev','reg_cap', 'loanratio', 'roa', 'depratio', 'comloanratio',\
                'mortratio', 'consloanratio','loanhhi',\
@@ -77,13 +77,13 @@ ss = ss.append(pd.DataFrame(dict(zip(range(ss.shape[1]),stats)), index = ['Years
 
 # Change name of columns
 columns = [('Total Sample', 'Mean'), ('Total Sample', 'SD'),\
-        ('Loan Sellers', 'Mean'), ('Loan Sellers', 'SD'),\
-        ('Non-loan Sellers', 'Mean'), ('Non-loan Sellers', 'SD'),\
+        ('Loan Transferrers', 'Mean'), ('Loan Transferrers', 'SD'),\
+        ('Non-loan Transferrers', 'Mean'), ('Non-loan Transferrers', 'SD'),\
         ('Difference in Means', 'Abs'),('Difference in Means', '\%'),('Difference in Means', 'P-value')]
 ss.columns = pd.MultiIndex.from_tuples(columns)
 
 # Change index
-index_col = ['Net Charge-offs','NPL', 'Loan Sales (Total)','Sec. Loan Sales', 'Non-sec. Loan Sales',\
+index_col = ['Net Charge-offs','NPL', 'RWATA', 'Loan Transfers','Securitization', 'Loan Sales',\
              'Max. Credit Exp. (Total)','Max. Credit Exp. (Sec.)', 'Max. Credit Exp. (Non-sec.)',\
                'Leverage Ratio','Capital Ratio', 'Loan Ratio', 'ROA', 'Deposit Ratio', 'Commercial Loan Ratio',\
                'Mortgage Ratio', 'Consumer Loan Ratio','Loan HHI',\
@@ -142,7 +142,7 @@ def resultsToLatex(results, caption = '', label = '', size_string = '\\scriptsiz
     location_distance = latex_table.find('Net Charge-offs')
     latex_table = latex_table[:location_distance] + txt_distance + latex_table[location_distance:]
     
-    location_ls = latex_table.find('Loan Sales (Total)')
+    location_ls = latex_table.find('Loan Transfers')
     latex_table = latex_table[:location_ls] + txt_ls + latex_table[location_ls:]
     
     location_loan = latex_table.find('Leverage Ratio')
@@ -168,7 +168,7 @@ def resultsToLatex(results, caption = '', label = '', size_string = '\\scriptsiz
 caption = 'Summary Statistics'
 label = 'tab:summary_statistics'
 size_string = '\\tiny \n'
-note = "\\textit{Notes.} Summary statistics of the full sample, loan-selling and non-loan-selling banks. Abbreviations sec. and exp. are securitized and exposure, respectively. We compare loan sellers with non-loan sellers. Differences in means are calculated with the Welch's t-test for unequal sample sizes and unequal sample variances, only the p-values are given."
+note = "\\textit{Notes.} Summary statistics of the full sample, loan-transferring and non-loan-transferring banks. Abbreviations sec. and exp. are securitized and exposure, respectively. We compare loan transferrers with non-loan transferrers. Differences in means are calculated with the Welch's t-test for unequal sample sizes and unequal sample variances, only the p-values are given."
 
 ss_latex = resultsToLatex(ss, caption, label,\
                                  size_string = size_string, note_string = note,\

@@ -1,5 +1,5 @@
-from statsmodels.compat.python import (lrange, iterkeys, iteritems, lzip,
-                                       itervalues)
+from statsmodels.compat.python import (lrange, lzip)
+from future.utils import iteritems, iterkeys, itervalues
 from six import string_types
 from functools import reduce
 

@@ -37,7 +37,7 @@ def estimationTable(df, show = 'pval', stars = False, col_label = 'Est. Results'
     # Prelims
     ## Set dictionary for index and columns
     dictionary = {'Intercept':'Intercept',
-                 'G_hat_fd':'Recourse (LS/TA)',
+                 'G_hat_fd':'Recourse (LT/TA)',
                  'reg_cap':'Capital Ratio',
                  'loanratio':'Loan Ratio',
                  'roa':'ROA',
@@ -50,7 +50,7 @@ def estimationTable(df, show = 'pval', stars = False, col_label = 'Est. Results'
                  'size':'Size',
                  'bhc':'BHC',
                  'log_empl':'Employees',
-                 'perc_limited':'Limited Service (\%)',
+                 'perc_limited_branch':'Limited Service (\%)',
                  'nobs':'Observations',
                  'rsquared':'$R^2$',
                  'adj_rsq':'Adj. $R^2$',
@@ -59,19 +59,24 @@ def estimationTable(df, show = 'pval', stars = False, col_label = 'Est. Results'
                  'sargan':'P-val Sargan-test'}
     
     # Get parameter column and secondary columns (std, tval, pval)
-    params = df.Parameter.iloc[[i for i in range(1,13)] + [0]].round(4)
+    params = df.Parameter.iloc[~df.Parameter.index.str.contains('Intercept|dum')].\
+             append(df.Parameter.iloc[df.Parameter.index.str.contains('Intercept')]).round(4)
     
     if show == 'std':
-        secondary = df['Std. Err.']
+        secondary_val = 'Std. Err.'
     elif show == 'tval':
-        secondary = df['T-stat']
+        secondary_val = 'T-stat'
     else:
-        secondary = df['P-value']
+        secondary_val = 'P-value'
+    secondary = df[secondary_val].iloc[~df[secondary_val].index.str.contains('Intercept|dum')].\
+             append(df[secondary_val].iloc[df[secondary_val].index.str.contains('Intercept')]).round(4)
 
     # Transform secondary column 
     # If stars, then add stars to the parameter list
     if stars:
-        stars_count = ['*' * i for i in sum([df['P-value'] <0.10, df['P-value'] <0.05, df['P-value'] <0.01])]
+        pval_list = df['P-value'].iloc[~df['P-value'].index.str.contains('Intercept|dum')].\
+             append(df['P-value'].iloc[df['P-value'].index.str.contains('Intercept')]).round(4)
+        stars_count = ['*' * i for i in sum([pval_list <0.10, pval_list <0.05, pval_list <0.01])]
         params = ['{:.4f}{}'.format(val, stars) for val, stars in zip(params,stars_count)]
     secondary_formatted = ['({:.4f})'.format(val) for val in secondary]
     
@@ -167,7 +172,10 @@ def concatResults(path_list, show = 'pval', stars = False, col_label = None, cap
     
     ## Add note to the table
     # TODO: Add std, tval and stars option
-    note_string = '\justify\n\\scriptsize{\\textit{Notes.} P-value in parentheses. The model is estimated with clustered standard errors on the bank-level. The dependent variables in column (1) and (2) are the net charge-offs ratio and the non-performing loan ratio, respectively.}\n'
+    if step == 1:
+        note_string = '\justify\n\\scriptsize{\\textit{Notes.} P-value in parentheses. The model is estimated with clustered standard errors on the bank-level. The dependent variables in column (1), (2), and (3) are the net charge-offs ratio, RWA/TA, and the non-performing loan ratio, respectively.}\n'
+    else:
+        note_string = '\justify\n\\scriptsize{\\textit{Notes.} P-value in parentheses. The model is estimated with clustered standard errors on the bank-level. The dependent variable is recourse.}\n'
     location = results_latex.find('\end{tabular}\n')
     results_latex = results_latex[:location + len('\end{tabular}\n')] + note_string + results_latex[location + len('\end{tabular}\n'):]
     
@@ -180,7 +188,7 @@ def concatResults(path_list, show = 'pval', stars = False, col_label = None, cap
     
 # Set path list
 path_list_step1 = ['Results/Main/Step_1/Step1_main_0.csv']
-path_list_step2 = ['Results/Main/Step_2/Step2_main_{}.csv'.format(i) for i in range(2)]
+path_list_step2 = ['Results/Main/Step_2/Step2_main_{}.csv'.format(i) for i in range(3)]
 
 col_label_step1 = ['({})'.format(i) for i in range(1,len(path_list_step1) + 1)]
 col_label_step2 = ['({})'.format(i) for i in range(1,len(path_list_step2) + 1)]

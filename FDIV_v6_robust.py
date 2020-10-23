@@ -89,7 +89,7 @@ vars_endo_list = [var_endo_robust1, var_endo_robust2_1, var_endo_robust2_2,\
 
 vars_z = 'log_empl + perc_limited_branch' # In list in case multiple instruments are needed to be run
 
-dep_vars = ['net_coff_tot','npl']
+dep_vars = ['net_coff_tot','npl','rwata']
 num_cores = mp.cpu_count()
 
 #----------------------------------------------
@@ -207,7 +207,11 @@ def analysesFDIV(dep_var, var_ls, df, righthand_z, righthand_x):
     # Prelims
     ## Setup the x and z variable vectors
     vars_x = righthand_x.split(' + ')
-    vars_z = righthand_z.split(' + ')
+    if var_ls == 'credex_tot':
+        righthand_z = 'log_empl'
+        vars_z = [righthand_z]
+    else: 
+        vars_z = righthand_z.split(' + ')
     
     ## Number of z variables
     num_z = righthand_z.count('+') + 1
@@ -308,7 +312,7 @@ list_dfs = [df_fd1, df_fd, df_fd, df_fd3]
 # Run models
 #----------------------------------------------
 if __name__ == '__main__': 
-    step1, step2, f, endo, sargan_res = zip(*Parallel(n_jobs = num_cores)(delayed(analysesFDIV)(dep_var, endo_var, data, vars_z, righthand_x) for endo_var,data in zip(vars_endo_list,list_dfs) for dep_var in dep_vars))
+    step1, step2, f, endo, sargan_res = zip(*Parallel(n_jobs = num_cores)(delayed(analysesFDIV)(dep_var, endo_var, data, vars_z, righthand_x) for dep_var in dep_vars for endo_var,data in zip(vars_endo_list,list_dfs)))
 
 #----------------------------------------------
 # Save
@@ -348,7 +352,10 @@ def step2ToCSV(table2, endo_val, sargan_val, i):
     main_table2['nobs'] = table2.nobs
     main_table2['rsquared'] = table2.rsquared
     main_table2['endo'] = endo_val
-    main_table2['sargan'] = sargan_val
+    if sargan_val:
+        main_table2['sargan'] = sargan_val
+    else:
+        main_table2['sargan'] = np.nan
     
     ## Save to csv
     main_table2.to_csv('Robustness_checks\Step_2\Step2_robust_{}.csv'.format(i))

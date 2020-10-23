@@ -70,7 +70,7 @@ from linearmodels.utility import WaldTestStatistic
 righthand_x = r'reg_cap + loanratio + roa + depratio + comloanratio + mortratio + consloanratio + loanhhi + costinc + size + bhc'
 vars_endo = 'ls_tot' 
 vars_z = 'log_empl + perc_limited_branch' # In list in case multiple instruments are needed to be run
-dep_vars = ['net_coff_tot','npl']
+dep_vars = ['net_coff_tot','npl','rwata']
 num_cores = mp.cpu_count()
 
 # Estimation window
@@ -188,7 +188,7 @@ def analysesFDIV(dep_var, var_ls, df, righthand_z, righthand_x):
     num_z = righthand_z.count('+') + 1
       
     ## Make timedummies and set a string of the time dummy vector
-    time_dummies_list_step1 = ['dum{}'.format(year) for year in df.index.get_level_values(1).unique().astype(str).str[:4][2:].tolist()]
+    time_dummies_list_step1 = ['dum{}'.format(year) for year in df.index.get_level_values(1).unique().astype(str).str[:4][1:].tolist()]
     time_dummies_step1 = ' + '.join(time_dummies_list_step1)
     time_dummies_step2 = time_dummies_step1
     '''
@@ -358,11 +358,28 @@ for table2, endo_val, sargan_val, i in zip(step2, endo, sargan_res, range(len(en
 #----------------------------------------------
     
 # Prelims
+## Make list split function
+def chunkIt(seq, num):
+    avg = len(seq) / float(num)
+    out = []
+    last = 0.0
+
+    while last < len(seq):
+        out.append(seq[int(last):int(last + avg)])
+        last += avg
+
+    return out
+
+# Set labels and test vect
 year_labels = [list_yearindex[i+int(np.ceil(window/2)) - 1] for i in range(t-window+1)] #subtract one year for the plots
 tests_all = [(fval < 10) or (oid < 0.05) for fval, oid in zip(f,sargan_res)]
-bar_year_coff = list(compress(year_labels,tests_all[:len(tests_all)//2])) 
-bar_year_npl = list(compress(year_labels,tests_all[len(tests_all)//2:])) 
-var_names = step2[0]._var_names[:12]
+test_coff, test_npl, test_rwata = chunkIt(tests_all,3)
+
+bar_year_coff = list(compress(year_labels,test_coff)) 
+bar_year_npl = list(compress(year_labels,test_npl)) 
+bar_year_rwata = list(compress(year_labels,test_rwata)) 
+
+var_names = step2[0]._var_names[:13]
 
 ## Make plotting function    
 def plotRollingAverage(params, std_errors, depvar, var_name, bar_year):
@@ -403,13 +420,20 @@ def plotRollingAverage(params, std_errors, depvar, var_name, bar_year):
     fig.savefig('Figures\Moving_averages\{}\MA_{}_{}.png'.format(depvar,depvar,var_name))  
 
 # Loop over plotting function
-for p in range(12):
-    ## Set params and stds
-    params_coff = [step2[i].params[p] for i in range(len(step2) // 2)]
-    std_errors_coff = [step2[i].std_errors[p] for i in range(len(step2) // 2)]
-    params_npl = [step2[i + len(step2) // 2].params[p] for i in range(len(step2) // 2)]
-    std_errors_npl = [step2[i + len(step2) // 2].std_errors[p] for i in range(len(step2) // 2)]
+## Get chucks
+coff, npl, rwata = chunkIt(step2,3)
+    
+for p in range(13):
+    ## Get params and stds
+    params_coff = [mod.params[p] for mod in coff]
+    params_npl = [mod.params[p] for mod in npl]
+    params_rwata = [mod.params[p] for mod in rwata]
+    
+    std_errors_coff = [mod.std_errors[p] for mod in coff]
+    std_errors_npl = [mod.std_errors[p] for mod in npl]
+    std_errors_rwata = [mod.std_errors[p] for mod in rwata]
     
     # Run models
     plotRollingAverage(params_coff, std_errors_coff, 'net_coff_tot', var_names[p], bar_year_coff)
     plotRollingAverage(params_npl, std_errors_npl, 'npl', var_names[p], bar_year_npl)
+    plotRollingAverage(params_rwata, std_errors_rwata, 'rwata', var_names[p], bar_year_rwata)

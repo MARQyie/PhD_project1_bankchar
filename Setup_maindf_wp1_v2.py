@@ -92,6 +92,9 @@ df.loc[:,'nplna'] = df_filtered.loc[:,['RCON3492','RCON3495','RCON5400','RCON540
               'RCONC230','RCONF182','RCONF183','RCK215','RCK218']].sum(axis = 1, skipna = True)
 df.loc[:,'npl'] = (df.npl90 + df.nplna) / df_filtered.RC2170
 
+## RWATA
+df.loc[:,'rwata'] = df_filtered.RCG641 / df_filtered.RC2170
+
 # Control variables Baseline
 ## Loan sales
 df.loc[:,'ls_tot'] = df_filtered.loc[:,['RCB705','RCB706','RCB707','RCB708','RCB709','RCB710',\

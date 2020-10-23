@@ -1,7 +1,7 @@
 #------------------------------------------
 # Make table displays the number of (non-)securitizers per year for first working paper
 # Mark van der Plaat
-# September 2019 
+# September 2019
 
 #------------------------------------------
 # Import packages
@@ -50,21 +50,21 @@ prec_ls = count_ls.divide(count_sum) * 100
 table_count = pd.DataFrame([count_lssec,perc_lssec,count_lsnonsec,count_ls,\
                             prec_ls,count_non,count_sum],\
                            index = ['Securitization','Securitization (in %)',\
-                                    'Loan Sales','Total Loan Sales','Total Loan Sales (in %)',\
-                                    'No Loan Sales','Total']).T
+                                    'Loan Sales','Total Loan Transfers','Total Loan Transfers (in %)',\
+                                    'No Loan Transfers','Total']).T
 
 ## Make total row
 ### First sum all the columns:
 sum_col = table_count.sum(axis = 0).astype(int).tolist()
 
-### Recalculate item 1 and 4 
+### Recalculate item 1 and 4
 sum_col[1] = sum_col[0] / sum_col[-1] * 100
 sum_col[4] = sum_col[3] / sum_col[-1] * 100
 
 ## Add to the table
 table_count.loc[-1] = np.array(sum_col)
 
-### Rename the last row                            
+### Rename the last row
 table_count.rename({-1:'Total Sample'}, axis = 'index', inplace = True)
 
 #----------------------------------------
