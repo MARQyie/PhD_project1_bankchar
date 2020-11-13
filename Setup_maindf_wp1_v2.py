@@ -71,10 +71,21 @@ df = df_filtered[['IDRSSD','date']]
 
 # Dependent Variables
 ## Total Charge-offs
-df['net_coff_tot'] = (df_filtered[['RIADB747','RIADB748','RIADB749','RIADB750',\
+df.loc[:,'net_coff_tot'] = (df_filtered[['RIADB747','RIADB748','RIADB749','RIADB750',\
   'RIADB751','RIADB752','RIADB753', 'RIAD4635']].sum(axis = 1) - \
 df_filtered[['RIADB754','RIADB755','RIADB756','RIADB757','RIADB758','RIADB759','RIADB760', 'RIAD4605']].\
-sum(axis = 1)) / df_filtered.RC2170
+sum(axis = 1)) / df_filtered.loc[:,['RCB705','RCB706','RCB707','RCB708','RCB709','RCB710',\
+                                    'RCB711','RCONFT08','RCONFT10','RC2122','RC2123']].sum(axis = 1, skipna = True)
+                                    
+### With and without loan transfer exposure
+df.loc[:,'net_coff_on'] = (df_filtered.RIAD4635 - df_filtered.RIAD4605) / df_filtered[['RC2122', 'RC2123']].sum(axis = 1)
+
+df.loc[:,'net_coff_off'] = ((df_filtered[['RIADB747','RIADB748','RIADB749','RIADB750',\
+  'RIADB751','RIADB752','RIADB753']].sum(axis = 1) - \
+df_filtered[['RIADB754','RIADB755','RIADB756','RIADB757','RIADB758','RIADB759','RIADB760']].\
+sum(axis = 1)) / df_filtered.loc[:,['RCB705','RCB706','RCB707','RCB708','RCB709','RCB710',\
+                                    'RCB711','RCONFT08','RCONFT10']].sum(axis = 1, skipna = True)).replace([np.inf,-np.inf, np.nan], 0)
+                                    
 
 ## Non-performing loans
 ## NOTE: We classify NPL as 90 and still accruing + nonaccrual. Just to be sure we also calculate 30-89 days accruing loans
@@ -90,10 +101,21 @@ df.loc[:,'nplna'] = df_filtered.loc[:,['RCON3492','RCON3495','RCON5400','RCON540
               'RCFD5379','RC5382','RC1583','RCFD1253','RC1256','RCB577','RCB580',\
               'RC5391','RC5461','RCFD1259','RC1791','RCONF176','RCONF177','RCONC229',\
               'RCONC230','RCONF182','RCONF183','RCK215','RCK218']].sum(axis = 1, skipna = True)
-df.loc[:,'npl'] = (df.npl90 + df.nplna) / df_filtered.RC2170
+df.loc[:,'npl_on'] = (df.npl90 + df.nplna) / df_filtered[['RC2122', 'RC2123']].sum(axis = 1)
+
+## OBS and tot non-performing loans
+df.loc[:,'npl_off'] = (df_filtered.loc[:,['RCB740','RCB741','RCB742','RCB743','RCB744','RCB745','RCB746']].sum(axis = 1, skipna = True).divide(df_filtered.loc[:,['RCB705','RCB706','RCB707','RCB708','RCB709','RCB710','RCB711','RCONFT08']].sum(axis = 1, skipna = True))).replace([np.inf,-np.inf, np.nan], 0)
+
+df.loc[:,'npl_tot'] = (df.npl90 + df.nplna + df_filtered.loc[:,['RCB740','RCB741','RCB742','RCB743','RCB744','RCB745','RCB746']].sum(axis = 1, skipna = True)).divide(df_filtered.loc[:,['RC2122', 'RC2123','RCB705','RCB706','RCB707','RCB708','RCB709','RCB710','RCB711','RCONFT08']].sum(axis = 1, skipna = True))
 
 ## RWATA
 df.loc[:,'rwata'] = df_filtered.RCG641 / df_filtered.RC2170
+
+## Allowance Ratio
+df.loc[:,'allow_tot'] = df_filtered.RIAD3123.divide(df_filtered[['RC2122', 'RC2123']].sum(axis = 1))
+
+## Provision Ratio
+df.loc[:,'prov_ratio'] = df_filtered.RIAD4230.divide(df_filtered[['RC2122', 'RC2123']].sum(axis = 1))
 
 # Control variables Baseline
 ## Loan sales
@@ -106,7 +128,7 @@ df.loc[:,'reg_lev'] = df_filtered.RC7204
 df.loc[:,'reg_cap'] = df_filtered.RC7205
 
 ## Loan Ratio
-df.loc[:,'loanratio'] = df_filtered.RC2122 / df_filtered.RC2170
+df.loc[:,'loanratio'] = df_filtered[['RC2122', 'RC2123']].sum(axis = 1) / df_filtered.RC2170
 
 ## ROA
 df.loc[:,'roa'] = df_filtered.RIAD4340 / df_filtered.RC2170
@@ -115,19 +137,19 @@ df.loc[:,'roa'] = df_filtered.RIAD4340 / df_filtered.RC2170
 df.loc[:,'depratio'] = df_filtered.RC2200 / df_filtered.RC2170
 
 ## Commercial Loan Ratio
-df.loc[:,'comloanratio'] = df_filtered.loc[:,'RCON1766'] / df_filtered.RC2122
+df.loc[:,'comloanratio'] = df_filtered.loc[:,'RCON1766'] / df_filtered[['RC2122', 'RC2123']].sum(axis = 1)
 
 ## Mortgage Ratio
 df_filtered.loc[:,'loans_sec_land'] = df_filtered.apply(lambda x: x.RCON1415 if ~np.isnan(x.RCON1415) else x[['RCF158','RCF159']].sum(), axis = 1) # Not needed in analysis
 df_filtered.loc[:,'loans_sec_nonfarm'] = df_filtered.apply(lambda x: x.RCON1480 if ~np.isnan(x.RCON1480) else x[['RCF160','RCF161']].sum(), axis = 1) # Not needed in analysis
 df.loc[:,'mortratio'] = df_filtered.loc[:,['loans_sec_land','RC1420','RC1460','RC1797',\
-  'RC5367','RC5368','loans_sec_nonfarm']].sum(axis = 1).divide(df_filtered.RC2122)
+  'RC5367','RC5368','loans_sec_nonfarm']].sum(axis = 1).divide(df_filtered[['RC2122', 'RC2123']].sum(axis = 1))
 
 ## Consumer Loan Ratio
-df.loc[:,'consloanratio'] = df_filtered.loc[:,['RCB538','RCB539','RC2011','RCK137','RCK207']].sum(axis = 1).divide(df_filtered.RC2122)
+df.loc[:,'consloanratio'] = df_filtered.loc[:,['RCB538','RCB539','RC2011','RCK137','RCK207']].sum(axis = 1).divide(df_filtered[['RC2122', 'RC2123']].sum(axis = 1))
 
 ## Loans HHI
-df.loc[:,'agriloanratio'] = df_filtered.RC1590 / df_filtered.RC2122 # Not needed in analysis, but needed to calculate loan HHI
+df.loc[:,'agriloanratio'] = df_filtered.RC1590 / df_filtered[['RC2122', 'RC2123']].sum(axis = 1) # Not needed in analysis, but needed to calculate loan HHI
 df.loc[:,'loanhhi'] = df.loc[:,['mortratio','consloanratio','comloanratio','agriloanratio']].pow(2).sum(axis = 1) 
 
 ## Cost-to-income (costs / operating income = costs / (net int. inc + non-int inc))
@@ -151,41 +173,28 @@ df.loc[:,'ls_nonsec'] = df_filtered.loc[:,['RCB790','RCB791','RCB792','RCB793','
 df.loc[:,'ls_dum'] = (df.ls_tot > 0.0) * 1
   
 ## Credit Exposure
-'''
-df.loc[:,'credex_sec'] = df_filtered.loc[:,['RCB712','RCB713','RCB714','RCB715','RCB716','RCB717','RCB718',\
-                                  'RCB719','RCB720','RCB721','RCB722','RCB723','RCB724','RCB725',\
-                                  'RCC393','RCC394','RCC395','RCC396','RCC397','RCC398','RCC399',\
-                                  'RCC400','RCC401','RCC402','RCC403','RCC404','RCC405','RCC406',\
-                                  'RCHU09','RCFDHU10','RCFDHU11','RCFDHU12','RCFDHU13','RCFDHU14','RCHU15']].\
-                          sum(axis = 1, skipna = True) / df_filtered.RC2170
-df['credex_nonsec'] = df_filtered.loc[:,['RCB797','RCB798','RCB799','RCB800','RCB801','RCB802','RCB803']].\
-                          sum(axis = 1, skipna = True) / df_filtered.RC2170
-df['credex_tot'] = df_filtered.loc[:,['RCB712','RCB713','RCB714','RCB715','RCB716','RCB717','RCB718',\
-                                  'RCB719','RCB720','RCB721','RCB722','RCB723','RCB724','RCB725',\
-                                  'RCC393','RCC394','RCC395','RCC396','RCC397','RCC398','RCC399',\
-                                  'RCC400','RCC401','RCC402','RCC403','RCC404','RCC405','RCC406',\
-                                  'RCHU09','RCFDHU10','RCFDHU11','RCFDHU12','RCFDHU13','RCFDHU14',\
-                                  'RCHU15','RCB797','RCB798','RCB799','RCB800','RCB801','RCB802','RCB803']].\
-                          sum(axis = 1, skipna = True) / df_filtered.RC2170
-                          '''
+### Calculate underlying exposures (interest-only strips, sub. notes/standby letters of credit after 2017 not available)
+df.loc[:,'mace_sec_io'] = df_filtered.loc[:,['RCB712','RCB713','RCB714','RCB715','RCB716','RCB717','RCB718']].sum(axis = 1, skipna = True)
+df.loc[:,'mace_sec_subloc'] = df_filtered.loc[:,['RCB719','RCB720','RCB721','RCB722','RCB723','RCB724','RCB725',\
+                                                 'RCC393','RCC394','RCC395','RCC396','RCC397','RCC398','RCC399',\
+                                                 'RCC400','RCC401','RCC402','RCC403','RCC404','RCC405','RCC406']].sum(axis = 1, skipna = True)
+df.loc[:,'mace_sec'] = df_filtered.loc[:,['RCB712','RCB713','RCB714','RCB715','RCB716','RCB717','RCB718',\
+                                          'RCB719','RCB720','RCB721','RCB722','RCB723','RCB724','RCB725',\
+                                          'RCC393','RCC394','RCC395','RCC396','RCC397','RCC398','RCC399',\
+                                          'RCC400','RCC401','RCC402','RCC403','RCC404','RCC405','RCC406',\
+                                          'RCHU09','RCFDHU10','RCFDHU11','RCFDHU12','RCFDHU13','RCFDHU14','RCHU15']].sum(axis = 1, skipna = True)
+df.loc[:,'mace_nonsec'] = df_filtered.loc[:,['RCB797','RCB798','RCB799','RCB800','RCB801','RCB802','RCB803']].sum(axis = 1, skipna = True)
 
-df.loc[:,'credex_sec'] = (df_filtered.loc[:,['RCB712','RCB713','RCB714','RCB715','RCB716','RCB717','RCB718',\
-                                  'RCB719','RCB720','RCB721','RCB722','RCB723','RCB724','RCB725',\
-                                  'RCC393','RCC394','RCC395','RCC396','RCC397','RCC398','RCC399',\
-                                  'RCC400','RCC401','RCC402','RCC403','RCC404','RCC405','RCC406',\
-                                  'RCHU09','RCFDHU10','RCFDHU11','RCFDHU12','RCFDHU13','RCFDHU14','RCHU15']].\
-                          sum(axis = 1, skipna = True) / df_filtered.loc[:,['RCB705','RCB706','RCB707','RCB708','RCB709','RCB710',\
+### Credit exposure
+df.loc[:,'credex_sec_io'] = (df.loc[:,'mace_sec_io'] / df_filtered.loc[:,['RCB705','RCB706','RCB707','RCB708','RCB709','RCB710',\
                'RCB711','RCONFT08']].sum(axis = 1, skipna = True)).replace(np.inf, 0).replace(np.nan, 0)
-df['credex_nonsec'] = (df_filtered.loc[:,['RCB797','RCB798','RCB799','RCB800','RCB801','RCB802','RCB803']].\
-                          sum(axis = 1, skipna = True) /  df_filtered.loc[:,['RCB790','RCB791','RCB792','RCB793','RCB794','RCB795',\
+df.loc[:,'credex_sec_subloc'] = (df.loc[:,'mace_sec_subloc'] / df_filtered.loc[:,['RCB705','RCB706','RCB707','RCB708','RCB709','RCB710',\
+               'RCB711','RCONFT08']].sum(axis = 1, skipna = True)).replace(np.inf, 0).replace(np.nan, 0)
+df.loc[:,'credex_sec'] = (df.loc[:,'mace_sec'] / df_filtered.loc[:,['RCB705','RCB706','RCB707','RCB708','RCB709','RCB710',\
+               'RCB711','RCONFT08']].sum(axis = 1, skipna = True)).replace(np.inf, 0).replace(np.nan, 0)
+df['credex_nonsec'] = (df.loc[:,'mace_nonsec'] /  df_filtered.loc[:,['RCB790','RCB791','RCB792','RCB793','RCB794','RCB795',\
                   'RCB796','RCONFT10']].sum(axis = 1, skipna = True)).replace(np.inf, 0).replace(np.nan, 0)
-df['credex_tot'] = (df_filtered.loc[:,['RCB712','RCB713','RCB714','RCB715','RCB716','RCB717','RCB718',\
-                                  'RCB719','RCB720','RCB721','RCB722','RCB723','RCB724','RCB725',\
-                                  'RCC393','RCC394','RCC395','RCC396','RCC397','RCC398','RCC399',\
-                                  'RCC400','RCC401','RCC402','RCC403','RCC404','RCC405','RCC406',\
-                                  'RCHU09','RCFDHU10','RCFDHU11','RCFDHU12','RCFDHU13','RCFDHU14',\
-                                  'RCHU15','RCB797','RCB798','RCB799','RCB800','RCB801','RCB802','RCB803']].\
-                          sum(axis = 1, skipna = True) / df_filtered.loc[:,['RCB705','RCB706','RCB707','RCB708','RCB709','RCB710',\
+df['credex_tot'] = (df.loc[:,['mace_sec','mace_nonsec']].sum(axis = 1, skipna = True) / df_filtered.loc[:,['RCB705','RCB706','RCB707','RCB708','RCB709','RCB710',\
                'RCB711','RCB790','RCB791','RCB792','RCB793','RCB794','RCB795',\
                   'RCB796','RCONFT08','RCONFT10']].sum(axis = 1, skipna = True)).replace(np.inf, 0).replace(np.nan, 0)
                           
@@ -222,7 +231,7 @@ df = df.merge(df_nobranch, on = ['IDRSSD', 'date'], how = 'left')
 #------------------------------------------------------------
 # Drop any nans in baseline variables
 #------------------------------------------------------------
-vars_baseline = ['net_coff_tot','npl','ls_tot','reg_lev','reg_cap','loanratio','roa','depratio',\
+vars_baseline = ['net_coff_tot','npl_on','ls_tot','reg_lev','reg_cap','loanratio','roa','depratio',\
                  'comloanratio','mortratio','loanhhi','costinc','size','bhc','log_empl',\
                  'num_branch']
 df.dropna(subset = vars_baseline, inplace = True)  
@@ -233,6 +242,9 @@ df.dropna(subset = vars_baseline, inplace = True)
 
 # Loan sales
 df = df.drop(df.ls_tot.idxmax())
+
+# Net Charge_offs
+df = df.drop(df.net_coff_tot.idxmax())
 
 ## Remove big outlier num_branch
 df = df[df.num_branch != df.num_branch.max()]

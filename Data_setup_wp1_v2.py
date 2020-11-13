@@ -102,7 +102,7 @@ vars_rc = '|'.join(['IDRSSD','2170','3545','3548','2200','0081','0071','3210','2
 vars_rcb = '|'.join(['IDRSSD','1771','1773','0213','1287','1754'])
 vars_rcc = '|'.join(['IDRSSD','1410','1415','1420','1797','1460','1288','1590','1766',\
                      '2122','1590','F158','F159','B538','B539','2011','K137','K207',\
-                     '5367','5368','1480','F160','F161','1763','1764']) 
+                     '5367','5368','1480','F160','F161','1763','1764','2123']) 
 vars_rce = '|'.join(['IDRSSD','B549','B550','6648','2604','J473','J474','B535','2081'])
 vars_rcg = '|'.join(['IDRSSD', 'B557'])
 vars_rcn = '|'.join(['IDRSSD','2759','2769','3492','3493','3494','3495',\
@@ -129,7 +129,8 @@ vars_rcs = '|'.join(['IDRSSD','B705','B706','B707','B708','B709','B710','B711',\
                      'B797','B798','B799','B800','B801','B802','B803',\
                      'C393','C394','C395','C396','C397','C398','C399',\
                      'C400','C401','C402','C403','C404','C405','C406',\
-                     'HU09','HU10','HU11','HU12','HU13','HU14','HU15'])  
+                     'HU09','HU10','HU11','HU12','HU13','HU14','HU15',\
+                     'B740','B741','B742','B743','B744','B745','B746'])  
 
 ## From income statement
 vars_ri = '|'.join(['IDRSSD','4074','4230','4079','4080','4107','4073','4093',\
@@ -260,15 +261,16 @@ def loadRIB(i):
     return(df_load.loc[:,df_load.columns.str.contains(vars_rib+ '|date')])  
     
 def combineVars(data, elem):
-    data['RC' + elem] = data.apply(lambda x: x['RCFD' + elem] if not np.isnan(x['RCFD' + elem]) and  round(x['RCFD' + elem]) != 0 else (x['RCON' + elem]), axis = 1) 
+    ''' Function to combine RCFD and RCON into one variable '''
+    data['RC' + elem] = data['RCFD' + elem].fillna(data['RCON' + elem])
     
     return(data['RC' + elem])
-    
+
 def combineVarsAlt(data, elem):
-    data['RC' + elem] = data.apply(lambda x: x['RCF' + elem] if not np.isnan(x['RCF' + elem]) and  round(x['RCF' + elem]) != 0 else (x['RCO' + elem]), axis = 1) 
+    data['RC' + elem] = data['RCF' + elem].fillna(data['RCO' + elem])
     
     return(data['RC' + elem])
-    
+
 #------------------------------------------------------------
 # Load Data
 #------------------------------------------------------------
@@ -321,7 +323,7 @@ if __name__ == '__main__':
     
 ### Merge RCFD and RCON cols    
 var_num = ['1420','1460','1590','1797','2122','B538','B539','2011','K137','K207',\
-           '5367','5368','F158','F159','F160','F161','1763','1764']
+           '5367','5368','F158','F159','F160','F161','1763','1764','2123']
 
 if __name__ == '__main__':
     df_rcc_combvars = pd.concat(Parallel(n_jobs=num_cores)(delayed(combineVars)(df_rcc, elem) for elem in var_num), axis = 1)
@@ -340,6 +342,8 @@ if __name__ == '__main__':
     df_rcg = pd.concat(Parallel(n_jobs=num_cores)(delayed(loadGeneralAlt)(i, file_rcg, vars_rcg) for i in range(start, end)))
     
 df_rcg.columns = ['IDRSSD', 'RCFDB557', 'RCONB557', 'date']
+
+df_rcg['RCB557'] = combineVars(df_rcg, 'B557')
 
 #------------------------------------------
 ## Load rcn data
@@ -385,8 +389,8 @@ df_rcr.loc[:,df_rcr.columns.str.contains(vars_trans)] = df_rcr.loc[:,df_rcr.colu
 var_num = ['7204','7205','7206']
 
 for elem in var_num:
-    df_rcr['RCF{}'.format(elem)] = df_rcr.apply(lambda x: x['RCFA{}'.format(elem)] if x.date > 2014 else (x['RCFD{}'.format(elem)]), axis = 1)
-    df_rcr['RCO{}'.format(elem)] = df_rcr.apply(lambda x: x['RCOA{}'.format(elem)] if x.date > 2014 else (x['RCON{}'.format(elem)]), axis = 1) 
+    df_rcr['RCF{}'.format(elem)] = df_rcr.loc[:,['RCFA{}'.format(elem), 'RCFD{}'.format(elem)]].sum(axis = 1)
+    df_rcr['RCO{}'.format(elem)] = df_rcr.loc[:,['RCOA{}'.format(elem), 'RCON{}'.format(elem)]].sum(axis = 1)
 
 if __name__ == '__main__':
     df_rcr_combvars = pd.concat(Parallel(n_jobs=num_cores)(delayed(combineVarsAlt)(df_rcr, elem) for elem in var_num), axis = 1)
@@ -406,7 +410,8 @@ var_num = ['B705','B706','B707','B708','B709','B710','B711',\
            'B797','B798','B799','B800','B801','B802','B803',\
            'C393','C394','C395','C396','C397','C398','C399',\
            'C400','C401','C402','C403','C404','C405','C406',\
-           'HU09','HU15']
+           'HU09','HU15','B740','B741','B742','B743','B744',\
+           'B745','B746']
 
 if __name__ == '__main__':
     df_rcs_combvars = pd.concat(Parallel(n_jobs=num_cores)(delayed(combineVars)(df_rcs, elem) for elem in var_num), axis = 1)

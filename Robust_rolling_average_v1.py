@@ -1,0 +1,414 @@
+#------------------------------------------
+# IV treatment model for first working paper
+# Rolling Average estimation
+# Mark van der Plaat
+# November 2020
+
+# Import packages
+import pandas as pd
+import numpy as np
+
+import multiprocessing as mp # For parallelization
+from joblib import Parallel, delayed # For parallelization
+num_cores = mp.cpu_count()
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+sns.set(style = 'white', font_scale = 2, palette = 'Greys_d')
+
+from itertools import compress
+import datetime
+
+import os
+#os.chdir(r'X:\My Documents\PhD\Materials_papers\1_Working_paper_loan_sales')
+os.chdir(r'D:\RUG\PhD\Materials_papers\1_Working_paper_loan_sales')
+
+# Import method for OLS
+from linearmodels import PanelOLS
+
+# Import packages for the Sargan-Hausman test
+from linearmodels.iv._utility import annihilate
+from linearmodels.utility import WaldTestStatistic
+
+#--------------------------------------------
+''' This script estimates the treatment effect of loan sales on credit risk
+    with an IV estimation procedure. The procedure has two steps
+    
+    Step 1: Estimate a linear model of LS on X and Z, where X are the exogenous
+    variables and Z are the instruments. Obtain the fitted probabilities G()
+    
+    Step 2: Do a OLS of CR on 1, G_hat, X
+    
+    Both steps are in first differences and include time dummies to account for
+    any time fixed effects.
+    
+    Dynamic effects are not included.
+    '''   
+
+''' Inputs and outputs of the script
+
+    INPUT: 
+        A pandas dataframe with Call Report data and data from the summary
+        of deposits
+        
+        A toggle switch to either use logs or not to estimate the system
+    
+    OUTPUT: 
+        Excel files with the results of the first and second step and the test
+        results of a T-test/F-test for weak instruments, a test for endogeneity
+        of the Loan Sales variable and a Sargan tests for overidentifying restrictions
+        
+        A txt-file with a scoring vector containing a score between 0 and 1 
+        that scores how good the instrumental variables are working
+        
+    This script does not create LaTeX tables. 
+    '''
+
+#---------------------------------------------- 
+#----------------------------------------------
+# Prelims
+#----------------------------------------------
+#----------------------------------------------
+
+# Estimation window
+window = 7
+
+#----------------------------------------------
+# Load data
+#----------------------------------------------
+
+# Load df
+df = pd.read_csv('Data\df_wp1_main.csv')
+
+# Remove date > 2017
+df = df[df.date < 2017]
+
+## Make multi index
+df.date = pd.to_datetime(df.date.astype(str) + '-12-31')
+df.set_index(['IDRSSD','date'],inplace=True)
+
+#------------------------------------------------------------
+# Transform data
+#------------------------------------------------------------
+
+#------------------------------------------------------------
+# Define functions
+# Log function
+def logVars(data, col):
+    return(np.log(data[col] + 1))
+
+# First difference function
+def firstDifference(group):
+    return(group.diff(periods = 1).dropna())
+
+#------------------------------------------------------------
+# Transform the data
+
+# Set list with variables to use
+vars_y = ['net_coff_tot','npl']
+vars_x = ['credex_tot', 'reg_cap', 'loanratio', 'roa', 'depratio',\
+          'comloanratio', 'mortratio','consloanratio', 'loanhhi', 'costinc',\
+          'size','bhc','intercept']
+vars_instr = ['log_empl','log_num_branch','perc_limited_branch', 'log_states']
+vars_dummies = ['dum' + dummy for dummy in pd.get_dummies(df.index.get_level_values(1)).columns.astype(str).str[:4].tolist()]
+
+# Log the data
+if __name__ == '__main__':
+    df_log = pd.concat(Parallel(n_jobs = num_cores)(delayed(logVars)(df, col) for col in vars_y + vars_x[:-1] + [vars_instr[2]]), axis = 1)
+    
+## Add other variables
+df_log['log_empl'] = df['log_empl']
+df_log['log_num_branch'] = df['log_num_branch']
+df_log['log_states'] = df['log_states']
+
+# Take first differences (t - t-1)
+df_grouped = df_log.groupby(df.index.get_level_values(0))
+    
+if __name__ == '__main__':
+    df_fd = pd.concat(Parallel(n_jobs = num_cores)(delayed(firstDifference)(group) for name, group in df_grouped))
+
+# Add time dummies and intercept
+## Add dummies
+dummy_fd = pd.DataFrame(np.array(pd.get_dummies(df_fd.index.get_level_values(1))), index = df_fd.index, columns = vars_dummies[1:])
+df_fd = pd.concat([df_fd, dummy_fd], axis = 1)
+
+dummy_log = pd.DataFrame(np.array(pd.get_dummies(df_log.index.get_level_values(1))), index = df_log.index, columns = vars_dummies)
+df_log = pd.concat([df_log, dummy_log], axis = 1)
+
+## Add intercept
+df_fd['intercept'] = 1
+df_log['intercept'] = 1
+
+## Drop 2001 in df_log
+df_z = df_log[df_log.index.isin(df_fd.index)]
+
+df_fd = pd.concat([df_fd, dummy_fd], axis = 1)
+
+#---------------------------------------------------
+# Load the necessary test functions
+
+def fTestWeakInstruments(y, fitted_full, fitted_reduced, dof = 4):
+    ''' Simple F-test to test the strength of instrumental variables. See
+        Staiger and Stock (1997)
+        
+        y : True y values
+        fitted_full : fitted values of the first stage with instruments
+        fitted_reduced : fitted values first stage without instruments
+        dof : number of instruments'''
+    
+    # Calculate the SSE and MSE
+    sse_full = np.sum([(y.values[i] - fitted_full.values[i][0])**2 for i in range(y.shape[0])])
+    sse_reduced =  np.sum([(y.values[i] - fitted_reduced.values[i][0])**2 for i in range(y.shape[0])])
+    
+    mse_full = (1 / y.shape[0]) * np.sum([(y.values[i] - fitted_full.values[i][0])**2 for i in range(y.shape[0])])
+    
+    # Calculate the statistic
+    f_stat = ((sse_reduced - sse_full)/dof) / mse_full
+    
+    return f_stat
+
+def sargan(resids, x, z, nendog = 1):
+    '''Function performs a sargan test (no heteroskedasity) to check
+        the validity of the overidentification restrictions. H0: 
+        overidentifying restrictions hold.
+        
+        resids : residuals of the second stage
+        x : exogenous variables
+        z : instruments 
+        nendog : number of endogenous variables'''  
+
+    nobs, ninstr = z.shape
+    name = 'Sargan\'s test of overidentification'
+
+    eps = resids.values[:,None]
+    u = annihilate(eps, pd.concat([x,z],axis = 1))
+    stat = nobs * (1 - (u.T @ u) / (eps.T @ eps)).squeeze()
+    null = 'The overidentification restrictions are valid'
+
+    return WaldTestStatistic(stat, null, ninstr - nendog, name=name)
+
+'''-----------------------------------------''' 
+#----------------------------------------------
+# Setup the method that does the FDIV plus tests
+#----------------------------------------------
+'''-----------------------------------------''' 
+
+def FDIV(data, data_z, y, x_endo, x_exo, z):
+   
+    #--------------------------------------------------------
+    rank_full = np.linalg.matrix_rank(data[x_exo + z])
+    
+    if rank_full != len(x_exo + z): 
+        raise Exception('X is not full column rank')
+        
+    #--------------------------------------------------------
+    # First Stage
+    ''' We perform one first stages;
+        1) Delta RECOURSE on Z and X_exo
+        '''
+    
+    model_1 = PanelOLS(data[x_endo[0]], pd.concat([data_z[z[0]], data[x_exo]], axis = 1))
+    
+    results_1 = model_1.fit(cov_type = 'clustered', cluster_entity = True)
+    
+    #--------------------------------------------------------
+    # Second Stage
+    
+    model_2 = PanelOLS(data[y], pd.concat([results_1.fitted_values.rename(columns = {'fitted_values' : 'endo_hat'}),\
+                                           data[x_exo]], axis = 1))
+    results_2 = model_2.fit(cov_type = 'clustered', cluster_entity = True)
+    #--------------------------------------------------------
+    # Tests
+    '''We test for three things:
+        1) The strength of the instrument using a Staiger & Stock type test.\
+           F-stat must be > 10.
+        2) A DWH test whether dum_ls or ls_tot_ta is endogenous. H0: variable is exogenous
+        3) A Sargan test to test the overidentifying restrictions. H0: 
+           overidentifying restrictions hold
+        
+        For only one instrument (num_z == 1) we use the p-val of the instrument in step 1) 
+            and we do not do a Sargan test''' 
+        
+    # Weak instruments (F test)
+    ## First run the First stage without instruments and get the residuals
+    ## NOTE: Since the first stage only includes one instrument we can just take the pval of the instrument
+    
+    if len(z) == 1:
+        f_test_step1 = results_1.pvalues[z[0]]
+    else:
+        ## TODO: multiple instruments in first stage --> REAL F-test
+        f_test_step1 = np.nan
+        
+    # DWH test
+    model_dwh_1 = PanelOLS(data[y], pd.concat([data[x_endo],\
+                                                 results_1.fitted_values.rename(columns = {'fitted_values' : 'endo_hat'}),\
+                                           data[x_exo]], axis = 1))
+    
+    results_dwh_1 = model_dwh_1.fit(cov_type = 'clustered', cluster_entity = True)
+
+    # Sargan-Hausman test
+    if len(z) > len(x_endo):
+        sh = sargan(results_2.resids, data[x_exo], data_z[z[0]], len(x_endo))
+    else:
+        sh = np.nan
+    
+    return results_1, results_2, f_test_step1, results_dwh_1.pvalues['endo_hat'], sh
+
+#----------------------------------------------
+#----------------------------------------------
+# Analyses
+#----------------------------------------------
+#----------------------------------------------
+
+# Setup parameter values to loop over
+t = df_fd.index.get_level_values(1).nunique()
+list_yearindex = df.index.get_level_values(1).unique().values
+
+# Set all variables
+x_endo = [vars_x[0]]
+x_exo = vars_x[1:]
+z = [vars_instr[0]]
+
+#----------------------------------------------
+# Run models
+#----------------------------------------------
+
+test = FDIV(df_fd[df_fd.index.get_level_values(1).isin(list_yearindex[1:1+window])],\
+            df_z[df_z.index.get_level_values(1).isin(list_yearindex[1:1+window])],\
+            vars_y[0], x_endo, x_exo + vars_dummies[1+1:1+window], z)
+
+if __name__ == '__main__':
+    step1, step2, f, endo, sargan_res = zip(*Parallel(n_jobs = num_cores)(delayed(FDIV)(df_fd[df_fd.index.get_level_values(1).isin(list_yearindex[year_vec:year_vec+window])],\
+ df_z[df_z.index.get_level_values(1).isin(list_yearindex[year_vec:year_vec+window])], elem, x_endo, x_exo + vars_dummies[year_vec+1:year_vec+window], z) for elem in vars_y for year_vec in range(1,t-window + 2)))
+
+#----------------------------------------------
+# Save
+#----------------------------------------------
+
+# Step 1
+
+def step1ToCSV(table1, fval, i):    
+    ## Load the main body of the table
+    main_table1 = pd.DataFrame(table1.summary.tables[1])
+    main_table1 = main_table1.set_index(main_table1.iloc[:,0])
+    main_table1.columns = main_table1.iloc[0,:]
+    main_table1 = main_table1.iloc[1:,1:]
+    
+    ## Add some statistics as columns to the main table
+    main_table1['nobs'] = table1.nobs
+    main_table1['rsquared'] = table1.rsquared
+    main_table1['f'] = fval
+    
+    ## Save to csv
+    main_table1.to_csv('Results\Rolling_average\Step_1\Step1_ra_{}.csv'.format(i))
+    
+## Run
+for table1, fval, i in zip(step1, f, range(len(f))):
+    step1ToCSV(table1, fval, i) 
+        
+# Step 2
+
+def step2ToCSV(table2, endo_val, sargan_val, i):    
+    ## Load the main body of the table
+    main_table2 = pd.DataFrame(table2.summary.tables[1])
+    main_table2 = main_table2.set_index(main_table2.iloc[:,0])
+    main_table2.columns = main_table2.iloc[0,:]
+    main_table2 = main_table2.iloc[1:,1:]
+    
+    ## Add some statistics as columns to the main table
+    main_table2['nobs'] = table2.nobs
+    main_table2['rsquared'] = table2.rsquared
+    main_table2['endo'] = endo_val
+    main_table2['sargan'] = sargan_val
+    
+    ## Save to csv
+    main_table2.to_csv('Results\Rolling_average\Step_2\Step2_ra_{}.csv'.format(i))
+
+## Run
+for table2, endo_val, sargan_val, i in zip(step2, endo, sargan_res, range(len(endo))):
+    step2ToCSV(table2, endo_val, sargan_val, i)
+    
+#----------------------------------------------
+#----------------------------------------------
+# Make Figures
+#----------------------------------------------
+#----------------------------------------------
+    
+# Prelims
+## Make list split function
+def chunkIt(seq, num):
+    avg = len(seq) / float(num)
+    out = []
+    last = 0.0
+
+    while last < len(seq):
+        out.append(seq[int(last):int(last + avg)])
+        last += avg
+
+    return out
+
+# Set labels and test vect
+year_labels = [list_yearindex[i+int(np.ceil(window/2)) - 1] for i in range(t-window+1)] #subtract one year for the plots
+#tests_all = [(fval < 10) or (oid < 0.05) for fval, oid in zip(f,sargan_res)]
+tests_all = [fval >= 0.05 for fval in f]
+test_coff, test_npl = chunkIt(tests_all,2)
+
+bar_year_coff = list(compress(year_labels,test_coff)) 
+bar_year_npl = list(compress(year_labels,test_npl)) 
+
+var_names = step2[0]._var_names[:13]
+
+## Make plotting function    
+def plotRollingAverage(params, std_errors, depvar, var_name, bar_year):
+    global year_labels
+    
+    ## Prelimns
+    c = 1.645
+    conf_lower = [a - b * c for a,b in zip(params, std_errors)]
+    conf_upper = [a + b * c for a,b in zip(params, std_errors)]
+        
+    ## Plot prelims 
+    fig, ax = plt.subplots(figsize=(12, 8))
+    #plt.title(dict_var_names[var_name])
+    ax.set(xlabel = 'Mid Year', ylabel = 'Parameter Estimate')
+    
+    ## Params
+    ax.plot(year_labels, params)
+    
+    ## Stds
+    ax.fill_between(year_labels, conf_upper, conf_lower, color = 'deepskyblue', alpha = 0.2)
+    
+    ## Shaded areas
+    ax_limits = ax.get_ylim() # get ax limits
+    ax.bar(bar_year,(ax_limits[1] + abs(ax_limits[0])),width = 3.655e2, bottom = ax_limits[0], color = 'dimgrey', alpha = 0.2, linewidth = 0)
+    #ax.fill_between(year_labels, ax_limits[1], ax_limits[0], where = test_estimates, step = 'mid', color = 'dimgrey', alpha = 0.2)
+    
+    ## Accentuate y = 0.0 
+    ax.axhline(0, color = 'orangered', alpha = 0.75)
+    
+    ## Set ax limits
+    ax.set_ylim(ax_limits)
+    ax.set_xlim([year_labels[0],year_labels[-1]])
+    
+    ## Last things to do
+    plt.tight_layout()
+
+    ## Save the figure
+    fig.savefig('Figures\Moving_averages\{}\MA_{}_{}.png'.format(depvar,depvar,var_name))  
+
+# Loop over plotting function
+## Get chucks
+coff, npl = chunkIt(step2,2)
+    
+for p in range(13):
+    ## Get params and stds
+    params_coff = [mod.params[p] for mod in coff]
+    params_npl = [mod.params[p] for mod in npl]
+    
+    std_errors_coff = [mod.std_errors[p] for mod in coff]
+    std_errors_npl = [mod.std_errors[p] for mod in npl]
+    
+    # Run models
+    plotRollingAverage(params_coff, std_errors_coff, 'net_coff_tot', var_names[p], bar_year_coff)
+    plotRollingAverage(params_npl, std_errors_npl, 'npl', var_names[p], bar_year_npl)
+
