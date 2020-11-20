@@ -50,7 +50,7 @@ df_filtered = df_filtered[~df_filtered.IDRSSD.isin(drop_banks)]
 
 #------------------------------------------
 # Drop missings in Total assets, loans, deposits, income
-nandrop_cols = ['RC2170','RC2122','RC2200','RIAD4340','RC3210']
+nandrop_cols = ['RC2170','RC2122','RC2200','RIAD4340']
 df_filtered.dropna(subset = nandrop_cols , inplace = True)
 
 #------------------------------------------
