@@ -111,8 +111,40 @@ df.loc[:,'npl_tot'] = (df.npl90 + df.nplna + df_filtered.loc[:,['RCB740','RCB741
 ## RWATA
 df.loc[:,'rwata'] = df_filtered.RCG641 / df_filtered.RC2170
 
-## Allowance Ratio
-df.loc[:,'allow_tot'] = df_filtered.RIAD3123.divide(df_filtered[['RC2122', 'RC2123']].sum(axis = 1))
+## Allowance Ratio (On balance)
+df.loc[:,'allow_on'] = df_filtered.RIAD3123.divide(df_filtered[['RC2122', 'RC2123']].sum(axis = 1))
+
+## Allowance Ratio (OBS)
+### Total assets
+df.loc[:,'allow_off_ta'] = df_filtered.RCB557.divide(df_filtered.RC2170).replace([np.inf,-np.inf, np.nan], 0)
+
+### Revenue based 
+### From Boyd & Gertler (1994). Used by: Clark & Siems (2002), Calmès & Théoret (2010)
+df.loc[:,'obs_ta_rb'] = df_filtered.RC2170.multiply(df_filtered.RIAD4079.divide(df_filtered.RIAD4074.subtract(df_filtered.RIAD4230))).abs().replace([np.inf,-np.inf], 0)
+df.loc[:,'allow_off_rb'] = df_filtered.RCB557.divide(df.obs_ta_rb).replace([np.inf,-np.inf, np.nan], 0)
+
+### OBS items
+### Based on Papanikolaou & Wolff (2014)
+df.loc[:,'obs_ta_items'] = df_filtered.loc[:,['RC3814', 'RC3815', 'RC3816', 'RC6550',\
+                        'RC3817', 'RC3818', 'RC3819', 'RC3821', 'RC3411', 'RC3428', 'RC3433',\
+                        'RCA534', 'RCA535', 'RC3430', 'RC5591', 'RCA126', 'RCA127', 'RC8723',\
+                        'RC8724', 'RC8725', 'RC8726', 'RC8727', 'RC8728', 'RCF164', 'RCF165',\
+                        'RCJ457', 'RCJ458', 'RCJ459', 'RCC968', 'RCC969',\
+                        'RCC970', 'RCC971', 'RCC972', 'RCC973', 'RCC974', 'RCC975', 'RCB705',\
+                        'RCB706', 'RCB707', 'RCB708', 'RCB709', 'RCB710', 'RCB711', 'RCONFT08',\
+                        'RCB790', 'RCB791', 'RCB792', 'RCB793', 'RCB794', 'RCB795', 'RCB796',\
+                        'RCONFT10']].sum(axis = 1)
+                                    
+df.loc[:,'allow_off_items'] = df_filtered.RCB557.divide(df.obs_ta_items).replace([np.inf,-np.inf, np.nan], 0)
+
+### Credit Equivalent Amounts
+### Based on Clark & Siems (2002)
+df.loc[:,'obs_ta_cea'] = df_filtered.loc[:,['RCB645','RCB650','RCB655','RCB660','RCB664',\
+                     'RCB669','RC2243','RCB676','RCB682','RCB687','RCA167','RCG592',\
+                     'RCD992','RCD998','RCG607','RCG613','RCS516','RCG619','RCS526',\
+                     'RCG625', 'RCS541','RCS542','RCS549']].sum(axis = 1)
+
+df.loc[:,'allow_off_cea'] = df_filtered.RCB557.divide(df.obs_ta_cea).replace([np.inf,-np.inf, np.nan], 0)
 
 ## Provision Ratio
 df.loc[:,'prov_ratio'] = df_filtered.RIAD4230.divide(df_filtered[['RC2122', 'RC2123']].sum(axis = 1))
@@ -127,8 +159,17 @@ df.loc[:,'ls_tot'] = df_filtered.loc[:,['RCB705','RCB706','RCB707','RCB708','RCB
 df.loc[:,'reg_lev'] = df_filtered.RC7204
 df.loc[:,'reg_cap'] = df_filtered.RC7205
 
+## Equity ratio
+df.loc[:,'eqratio'] = df_filtered.RC3210.divide(df_filtered.RC2170)
+
+## Loan level
+df.loc[:,'loanlevel'] = df_filtered[['RC2122', 'RC2123']].sum(axis = 1)
+
 ## Loan Ratio
 df.loc[:,'loanratio'] = df_filtered[['RC2122', 'RC2123']].sum(axis = 1) / df_filtered.RC2170
+
+## Loan to deposits
+df.loc[:,'loandep'] = df_filtered[['RC2122', 'RC2123']].sum(axis = 1) / df_filtered.RC2200
 
 ## ROA
 df.loc[:,'roa'] = df_filtered.RIAD4340 / df_filtered.RC2170
@@ -205,7 +246,8 @@ df['credex_tot'] = (df.loc[:,['mace_sec','mace_nonsec']].sum(axis = 1, skipna = 
 ## Employees and log Employees
 df.loc[:,'empl'] = df_filtered.RIAD4150
 df.loc[:,'log_empl'] = np.log(df_filtered.RIAD4150 + 1)    
-    
+
+'''    
 from Code_docs.help_functions.Proxies_org_complex_banks import LimitedServiceBranches,\
      spatialComplexity, noBranchBank, readSODFiles
 
@@ -227,13 +269,12 @@ df_nobranch = df_nobranch.reset_index()
 df = df.merge(df_branches, on = ['IDRSSD', 'date'], how = 'left')
 df = df.merge(df_complex, on = ['IDRSSD', 'date'], how = 'left')
 df = df.merge(df_nobranch, on = ['IDRSSD', 'date'], how = 'left')
-
+'''
 #------------------------------------------------------------
 # Drop any nans in baseline variables
 #------------------------------------------------------------
 vars_baseline = ['net_coff_tot','npl_on','ls_tot','reg_lev','reg_cap','loanratio','roa','depratio',\
-                 'comloanratio','mortratio','loanhhi','costinc','size','bhc','log_empl',\
-                 'num_branch']
+                 'comloanratio','mortratio','loanhhi','costinc','size','bhc']
 df.dropna(subset = vars_baseline, inplace = True)  
 
 #------------------------------------------------------------
@@ -246,8 +287,9 @@ df = df.drop(df.ls_tot.idxmax())
 # Net Charge_offs
 df = df.drop(df.net_coff_tot.idxmax())
 
+'''
 ## Remove big outlier num_branch
-df = df[df.num_branch != df.num_branch.max()]
+df = df[df.num_branch != df.num_branch.max()] '''
 
 ## Limit ROA and prov ratio to [-1,1]
 vars_limit = ['roa']

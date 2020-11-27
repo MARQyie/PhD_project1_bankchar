@@ -27,79 +27,67 @@ df = pd.read_csv('Data/df_wp1_main.csv')
 #------------------------------------------------------------
 
 # prelims
-vars_needed = ['net_coff_on','net_coff_off','net_coff_tot','npl_tot','npl_on', 'npl_off','rwata',\
-               'credex_tot','credex_sec','credex_sec_io','credex_sec_subloc', 'credex_nonsec',\
-               'reg_lev','reg_cap', 'loanratio', 'roa', 'depratio', 'comloanratio',\
-               'mortratio', 'consloanratio','loanhhi',\
-               'costinc', 'size', 'bhc','log_empl','log_num_branch','perc_limited_branch']
+vars_needed = ['net_coff_on','npl_on','allow_on','prov_ratio',\
+               'credex_tot','reg_lev','reg_cap', 'loanratio', 'roa',\
+               'depratio', 'comloanratio','mortratio', 'consloanratio',\
+               'loanhhi','costinc', 'size', 'bhc']
 all_vars = ['IDRSSD','date']
 
 # Remove date > 2017
 df = df[df.date < 2017]
 
 # Subset dfs
-ls_idrssd = df[df.ls_tot > 0].index.get_level_values(0).unique().tolist() #1646
+ls_idrssd = rssdid_lsers = df[df.ls_tot > 0].IDRSSD.unique().tolist() #1646
 
-df_full = df[all_vars + vars_needed]
-df_ls = df.loc[df.index.get_level_values(0).isin(ls_idrssd),all_vars + vars_needed]
-df_nonls = df.loc[~df.index.get_level_values(0).isin(ls_idrssd),all_vars + vars_needed]
+df_ls = df.loc[df.IDRSSD.isin(ls_idrssd),all_vars + vars_needed]
+
+# Add crisis dummy
+df_ls['recession'] = (df_ls.date.isin([2001,2007,2008,2009]) * 1)
 
 #------------------------------------------------------------
 # Make table
 #------------------------------------------------------------
 
 # Get summary statistics
-ss_full = df_full[vars_needed].describe().T[['mean','std']]
 ss_ls = df_ls[vars_needed].describe().T[['mean','std']]
-ss_nonls = df_nonls[vars_needed].describe().T[['mean','std']]
 
-# Make comparison table
-ss_diff = ss_ls['mean'] - ss_nonls['mean']
-ss_perc = ((ss_ls['mean'] - ss_nonls['mean']) / ss_nonls['mean']).round(4).replace(np.inf,'')
-
-# welch's t-test
-t_test = []
-for var in vars_needed:
-    stat, pval = ttest_ind(df_ls[var], df_nonls[var],\
-                     equal_var = False, nan_policy = 'omit')
-    t_test.append(pval)
-ss_pval = pd.Series(t_test, index = vars_needed, name = 'pval')
-
-# Concat tables
-ss = pd.concat([ss_full,ss_ls,ss_nonls,ss_diff,ss_perc,ss_pval], axis = 1).round(4)
-ss.columns = range(ss.shape[1])
+# ROund to 4 decimals
+ss_ls = ss_ls.round(4)
 
 # Add extra stats
 ## N
-stats = [str(df_full.shape[0]), '', str(df_ls.shape[0]), '', str(df_nonls.shape[0]), '', '', '', '']
-ss = ss.append(pd.DataFrame(dict(zip(range(ss.shape[1]),stats)), index = ['N']))
+ss_ls.loc['N',:] = [str(df_ls.shape[0]), '']
 
 ## Banks
-stats = [str(df_full.IDRSSD.nunique()), '', str(df_ls.IDRSSD.nunique()), '', str(df_nonls.IDRSSD.nunique()), '', '', '', '']
-ss = ss.append(pd.DataFrame(dict(zip(range(ss.shape[1]),stats)), index = ['Banks']))
+ss_ls.loc['Banks',:] = [str(df_ls.IDRSSD.nunique()), '']
 
 ## Years
-stats = [str(df_full.date.nunique()), '', str(df_ls.date.nunique()), '', str(df_nonls.date.nunique()), '', '', '', '']
-ss = ss.append(pd.DataFrame(dict(zip(range(ss.shape[1]),stats)), index = ['Years']))
+ss_ls.loc['Years',:] = [str(df_ls.date.nunique()), '']
 
 # Change name of columns
-columns = [('Total Sample', 'Mean'), ('Total Sample', 'SD'),\
-        ('Loan Transferrers', 'Mean'), ('Loan Transferrers', 'SD'),\
-        ('Non-loan Transferrers', 'Mean'), ('Non-loan Transferrers', 'SD'),\
-        ('Difference in Means', 'Abs'),('Difference in Means', '\%'),('Difference in Means', 'P-value')]
-ss.columns = pd.MultiIndex.from_tuples(columns)
+columns = ['Mean', 'SD']
+ss_ls.columns = columns
 
 # Change index
-index_col = ['Net Charge-offs (Total)','Net Charge-offs (On)','Net Charge-offs (OBS)',\
-             'NPL (Total)','NPL (On)','NPL (OBS)', 'RWATA',\
-             'Max. Credit Exp. (Total)','Max. Credit Exp. (Sec.)','Max. Credit Exp. IO (Sec.)',\
-             'Max. Credit Exp. Sub./Loc. (Sec.)', 'Max. Credit Exp. (Non-sec.)',\
-               'Leverage Ratio','Capital Ratio', 'Loan Ratio', 'ROA', 'Deposit Ratio', 'Commercial Loan Ratio',\
-               'Mortgage Ratio', 'Consumer Loan Ratio','Loan HHI',\
-               'Cost-to-Income', 'Size', 'BHC','Employees (log)','Number of Branches (log)','Limited Service (\%)',\
-               'N','Banks','Years']
+index_col = ['Net Charge-offs','NPL','Allowance Ratio','Provision Ratio',\
+             'Max. Credit Exp.','Leverage Ratio','Capital Ratio',\
+             'Loan Ratio', 'ROA', 'Deposit Ratio', 'Commercial Loan Ratio',\
+             'Mortgage Ratio', 'Consumer Loan Ratio','Loan HHI',\
+             'Cost-to-Income', 'Size', 'BHC', 'N','Banks','Years']
 
-ss.index = index_col
+ss_ls.index = index_col
+
+# Test means different groups
+from scipy.stats import ttest_ind
+
+credex_yes = df_ls[df_ls.credex_tot > 0]
+credex_no = df_ls[df_ls.credex_tot == 0]
+
+for var in ['net_coff_on','npl_on','allow_on','prov_ratio']:
+    t,p = ttest_ind(credex_yes[var], credex_no[var], equal_var = False)
+    mean = [credex_yes[var].mean() ,credex_no[var].mean()]
+    print(mean, p)
+
 
 #------------------------------------------------------------
 # To Latex
@@ -110,7 +98,7 @@ def resultsToLatex(results, caption = '', label = '', size_string = '\\scriptsiz
     # Prelim
     function_parameters = dict(na_rep = '',
                                index_names = True,
-                               column_format = 'p{4cm}' + 'p{1cm}' * results.shape[1],
+                               column_format = 'p{4cm}' + 'p{1.5cm}' * results.shape[1],
                                escape = False,
                                multicolumn = True,
                                multicolumn_format = 'c',
@@ -131,9 +119,9 @@ def resultsToLatex(results, caption = '', label = '', size_string = '\\scriptsiz
             + '\\begin{tablenotes}\n\\scriptsize\n\\item ' + note_string + '\\end{tablenotes}\n' + latex_table[location_note + len('\end{tabular}\n'):]
             
     # Add midrule above 'Observations'
-    if latex_table.find('N                           &') >= 0:
+    if latex_table.find('N                     &') >= 0:
         size_midrule = '\\midrule '
-        location_mid = latex_table.find('N                           &')
+        location_mid = latex_table.find('N                     &')
         latex_table = latex_table[:location_mid] + size_midrule + latex_table[location_mid:]
         
     # Add headers for dependent var, ls vars, control vars 
@@ -145,20 +133,16 @@ def resultsToLatex(results, caption = '', label = '', size_string = '\\scriptsiz
     txt_distance = template_firstsubheader.substitute(numcols = results.shape[1] + 1, variable = 'Dependent Variables')
     txt_ls = template_subheaders.substitute(numcols = results.shape[1] + 1, variable = 'Recourse Variables')
     txt_loan = template_subheaders.substitute(numcols = results.shape[1] + 1, variable = 'Control Variables')
-    txt_lend = template_subheaders.substitute(numcols = results.shape[1] + 1, variable = 'Instrumental Variables')
     
     ## Get locations and insert strings
     location_distance = latex_table.find('Net Charge-offs')
     latex_table = latex_table[:location_distance] + txt_distance + latex_table[location_distance:]
     
-    location_ls = latex_table.find('Max. Credit Exp. (Total)')
+    location_ls = latex_table.find('Max. Credit Exp.')
     latex_table = latex_table[:location_ls] + txt_ls + latex_table[location_ls:]
     
     location_loan = latex_table.find('Leverage Ratio')
     latex_table = latex_table[:location_loan] + txt_loan + latex_table[location_loan:]
-    
-    location_lend = latex_table.find('Employees')
-    latex_table = latex_table[:location_lend] + txt_lend + latex_table[location_lend:]
     
     # Makes sidewaystable
     if sidewaystable:
@@ -176,18 +160,18 @@ def resultsToLatex(results, caption = '', label = '', size_string = '\\scriptsiz
 # Call function
 caption = 'Summary Statistics'
 label = 'tab:summary_statistics'
-size_string = '\\tiny \n'
-note = "\\textit{Notes.} Summary statistics of the full sample, loan-transferring and non-loan-transferring banks. Abbreviations sec. and exp. are securitized and exposure, respectively. We compare loan transferrers with non-loan transferrers. Differences in means are calculated with the Welch's t-test for unequal sample sizes and unequal sample variances, only the p-values are given."
+size_string = '\\scriptsize \n'
+note = "\\textit{Notes.} Summary statistics of the full sample. The abbreviation exp. stands for exposure."
 
-ss_latex = resultsToLatex(ss, caption, label,\
+ss_latex = resultsToLatex(ss_ls, caption, label,\
                                  size_string = size_string, note_string = note,\
-                                 sidewaystable = True)
+                                 sidewaystable = False)
 
 #------------------------------------------------------------
 # Save
 #------------------------------------------------------------
 
-ss.to_excel('Tables/Summary_statistics.xlsx')
+ss_ls.to_excel('Tables/Summary_statistics.xlsx')
 
 text_ss_tot_latex = open('Tables/Summary_statistics.tex', 'w')
 text_ss_tot_latex.write(ss_latex)
@@ -199,58 +183,38 @@ text_ss_tot_latex.close()
 
 # Risk variables
 ## Get the mean variables
-df_risk = df[['net_coff_on','npl_on','allow_tot','prov_ratio']].groupby(df.date).mean() * 100
+df_risk = df_ls[['net_coff_on','npl_on','allow_on','prov_ratio']].groupby(df.date).mean() * 100
 
 ## Plot
 fig, ax = plt.subplots(figsize=(14, 8))
 ax.set(xlabel='Year', ylabel = 'Average (in %)')
 ax.plot(df_risk.iloc[:,0], linestyle = '-', color = 'black', label = 'Net Charge-offs')
 ax.plot(df_risk.iloc[:,1], linestyle = '--', color = 'black', markersize=14, label = 'NPL')
-#ax.plot(df_risk.iloc[:,2], linestyle = ':', color = 'black', label = 'Loan Loss Allowances')
-#ax.plot(df_risk.iloc[:,3], linestyle = '-.', color = 'black', markersize=14, label = 'Loan Loss Provisions')
 ax.legend()
+plt.tight_layout()
 
-fig.savefig('Figures\Fig_sumstats_risk_vars_on.png')
+fig.savefig('Figures\Fig_sumstats_risk_vars_realized.png')
 
-# NOTE: We observe similar trends in allow tot and prov_ratio. These are forward-looking measures, which we will use in the robustness checks
-
-# Risk variables off balance sheet
-## Get the mean variables
-df_risk_bs = df[df.ls_sec > 0][['net_coff_on','net_coff_off','net_coff_tot','npl_on','npl_off','npl_tot']].groupby(df.date).mean() * 100
-
-## Plot
 fig, ax = plt.subplots(figsize=(14, 8))
 ax.set(xlabel='Year', ylabel = 'Average (in %)')
-ax.plot(df_risk_bs.iloc[:,1], linestyle = '-', color = 'black', label = 'Net Charge-offs (OBS)')
-ax.plot(df_risk_bs.iloc[:,4], linestyle = '--', color = 'black', markersize=14, label = 'NPL (OBS)')
-#ax.plot(df_risk.iloc[:,2], linestyle = ':', color = 'black', label = 'Loan Loss Allowances')
-#ax.plot(df_risk.iloc[:,3], linestyle = '-.', color = 'black', markersize=14, label = 'Loan Loss Provisions')
+ax.plot(df_risk.iloc[:,2], linestyle = ':', color = 'black', label = 'Loan Loss Allowances')
+ax.plot(df_risk.iloc[:,3], linestyle = '-.', color = 'black', markersize=14, label = 'Loan Loss Provisions')
 ax.legend()
+plt.tight_layout()
 
-fig.savefig('Figures\Fig_sumstats_risk_vars_off.png')
+fig.savefig('Figures\Fig_sumstats_risk_vars_anticipated.png')
+
+# NOTE: We observe similar trends in allow tot and prov_ratio. These are forward-looking measures, which we will use in the robustness checks
 
 
 # Credit exposure variables
 ## Get the mean variables
-df_cred = df[df.credex_tot > 0.0][['credex_tot','credex_sec', 'credex_nonsec']].groupby(df.date).mean() * 100
+df_cred = df_ls[['credex_nonsec']].groupby(df.date).mean() * 100
 
 ## Plot
 fig, ax = plt.subplots(figsize=(14, 8))
 ax.set(xlabel='Year', ylabel = 'Average (in %)')
 ax.plot(df_cred.iloc[:,0], linestyle = '-', color = 'black', label = 'Credit Exp. (Total)')
+plt.tight_layout()
 
 fig.savefig('Figures\Fig_sumstats_creditexp.png')
-# NOTE: Decline in credit exposure mainly comes from loan sales. Credit exp. sec is much lower, more volatile with only a flat downward trend
-
-# Credit exposure variables securitization only
-## Get the mean variables
-df_cred_sec = df[df.ls_sec > 0.0][['credex_sec','credex_sec_io','credex_sec_subloc']].groupby(df.date).mean() * 100
-
-## Plot
-fig, ax = plt.subplots(figsize=(14, 8))
-ax.set(xlabel='Year', ylabel = 'Average (in %)')
-ax.plot(df_cred_sec.iloc[:,1], linestyle = '-', color = 'black', label = 'Credit Exp. (IO)')
-ax.plot(df_cred_sec.iloc[:,2], linestyle = '-.', color = 'black', label = 'Credit Exp. (Sub./Loc.)')
-ax.legend()
-
-fig.savefig('Figures\Fig_sumstats_creditexp_sec_only.png')

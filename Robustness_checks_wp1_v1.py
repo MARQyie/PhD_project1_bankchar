@@ -1,22 +1,8 @@
 #--------------------------------------------
-# Benchmark  analysis for Working Paper 1
+# Robustness Checks for Working Paper 1
 # Mark van der Plaat
 # November 2020
 #--------------------------------------------
-
-''' This script runs the analysis for working paper 1: cyclicality of recourse.
-    The script is an update from previous script and now runs the benchmark.
-    
-    The benchmark model is as follows (all in first differences execpt the dummies):
-        CR = Beta1 RECOURSE + Beta2 RECOURSE*RECESSION 
-             + delta X + alpha + eta_t + epsilon
-    
-    Dependent variabels:
-        1) Net Loan Charge-offs
-        2) Non performing loans
-    
-    For the list of control variables, see paper
-    '''
 
 #--------------------------------------------
 # Import Packages
@@ -33,6 +19,14 @@ num_cores = mp.cpu_count()
 
 # Import method for OLS
 from linearmodels import PanelOLS
+
+# Iteration tools
+from itertools import islice
+
+# Plot packages
+import matplotlib.pyplot as plt
+import seaborn as sns
+sns.set(style = 'white', font_scale = 2, palette = 'Greys_d')
 
 # Set WD
 import os
@@ -95,14 +89,15 @@ def estimationTable(df, show = 'pval', stars = False, col_label = 'Est. Results'
     dictionary = {'intercept':'Intercept',
                  'credex_tot':'Recourse',
                  'credex_tot_recession':'Recourse $\times$ Recession',
+                 'credex_sec':'Recourse',
+                 'credex_sec_recession':'Recourse $\times$ Recession',
                  'credex_nonsec':'Recourse',
                  'credex_nonsec_recession':'Recourse $\times$ Recession',
+                 'credex_tot_vix_mean':'Recourse $\times$ VIX',
                  'endo_hat':'Recourse',
                  'endo_int_hat':'Recourse $\times$ Recession',
                  'reg_cap':'Capital Ratio',
-                 'eqratio':'Equity Ratio',
                  'loanratio':'Loan Ratio',
-                 'loandep':'Loans-to-Deposits',
                  'roa':'ROA',
                  'depratio':'Deposit Ratio',
                  'comloanratio':'Com. Loan Ratio',
@@ -248,35 +243,121 @@ def concatResults(df_list, show = 'pval', stars = False, col_label = None, capti
     
     return results,results_latex
 
+# Rolling window 
+def window(seq, n=2):
+    "Returns a sliding window (of width n) over data from the iterable"
+    "   s -> (s0,s1,...s[n-1]), (s1,s2,...,sn), ...                   "
+    it = iter(seq)
+    result = tuple(islice(it, n))
+    if len(result) == n:
+        yield result
+    for elem in it:
+        result = result[1:] + (elem,)
+        yield result
+
+# List slicer
+def chunkIt(seq, num):
+    avg = len(seq) / float(num)
+    out = []
+    last = 0.0
+
+    while last < len(seq):
+        out.append(seq[int(last):int(last + avg)])
+        last += avg
+
+    return out
+
+# Plotting function rolling averages
+def plotRollingAverage(params, std_errors, depvar, var_name):
+    global year_labels
+    
+    ## Prelimns
+    c = 1.645
+    conf_lower = [a - b * c for a,b in zip(params, std_errors)]
+    conf_upper = [a + b * c for a,b in zip(params, std_errors)]
+        
+    ## Plot prelims 
+    fig, ax = plt.subplots(figsize=(12, 8))
+    #plt.title(dict_var_names[var_name])
+    ax.set(xlabel = 'Mid Year', ylabel = 'Parameter Estimate')
+    
+    ## Params
+    ax.plot(year_labels, params)
+    
+    ## Stds
+    ax.fill_between(year_labels, conf_upper, conf_lower, color = 'deepskyblue', alpha = 0.2)
+   
+    ## Accentuate y = 0.0 
+    ax.axhline(0, color = 'orangered', alpha = 0.75)
+    
+    ## Set ax limits
+    ax_limits = ax.get_ylim()
+    ax.set_ylim(ax_limits)
+    ax.set_xlim([year_labels[0],year_labels[-1]])
+    
+    ## Last things to do
+    plt.tight_layout()
+
+    ## Save the figure
+    fig.savefig('Figures\Moving_averages\{}\MA_{}_{}.png'.format(depvar,depvar,var_name))  
 #------------------------------------------------------------
 # Load the df and set up
 #------------------------------------------------------------
 
+# Main dataset
 df = pd.read_csv('Data/df_wp1_main.csv')
 
-# Remove date > 2017
+## Remove date > 2017
 df = df[df.date < 2017]
 
 ## Make multi index
 df.date = pd.to_datetime(df.date.astype(str) + '-12-31')
 df.set_index(['IDRSSD','date'],inplace=True)
 
+# VIX data
+df_vix = pd.read_csv('D:\RUG\Data\Time_series\VIX\VIX.csv')
+
+## Make Date datetime
+df_vix.Date = pd.to_datetime(df_vix.Date)
+
+## Transform to yearly data
+### Take mean
+df_vix_mean = df_vix.groupby(df_vix.Date.dt.year).mean()
+
+### Transform index to same structure main df
+df_vix_mean.index = pd.to_datetime(df_vix_mean.index.astype(str) + '-12-31')
+
+### Take last
+df_vix_last = df_vix.groupby(df_vix.Date.dt.year).last()
+
+### Transform index to same structure main df
+df_vix_last.index = pd.to_datetime(df_vix_last.index.astype(str) + '-12-31')
+
+# Merge datasets
+dates_main = df.index.get_level_values('date')
+df['vix_mean'] = df_vix_mean.loc[dates_main].Close.values
+df['vix_last'] = df_vix_last.loc[dates_main].Close.values
+
 #------------------------------------------------------------
 # Transform data
 #------------------------------------------------------------
 
 # Set list with variables to use
-#vars_y = ['ls_nonsec','loanlevel','net_coff_on','npl_on','allow_tot','prov_ratio']
-#vars_y = ['net_coff_on','npl_on','allow_on','prov_ratio']
-vars_y = ['allow_off_ta','allow_off_rb','allow_off_items','allow_off_cea','net_coff_on','npl_on','allow_on','prov_ratio']
-vars_x = ['credex_tot', 'reg_cap', 'eqratio', 'loanratio', 'loandep', 'roa', 'depratio',\
+vars_y = ['net_coff_on','npl_on','allow_on','prov_ratio']
+#vars_y = ['allow_off_ta','allow_off_rb','allow_off_items','allow_off_cea','net_coff_on','npl_on','allow_on','prov_ratio']
+vars_y_obs = ['net_coff_on','net_coff_off', 'npl_on', 'npl_off']
+vars_x = ['credex_tot', 'reg_cap', 'loanratio', 'roa', 'depratio',\
           'comloanratio', 'mortratio','consloanratio', 'loanhhi', 'costinc',\
           'size','bhc']
-vars_trans = ['credex_tot_recession']
+vars_x_obs = ['credex_sec', 'reg_cap', 'loanratio', 'roa', 'depratio',\
+          'comloanratio', 'mortratio','consloanratio', 'loanhhi', 'costinc',\
+          'size','bhc']
+vars_trans = ['credex_nonsec_recession', 'credex_tot_vix_mean', 'credex_nonsec_vix_last', 'credex_sec_recession']
+
 
 # Log the data
 if __name__ == '__main__':
-    df_log = pd.concat(Parallel(n_jobs = num_cores)(delayed(logVars)(df, col) for col in vars_y  + vars_x[:-1]), axis = 1)
+    df_log = pd.concat(Parallel(n_jobs = num_cores)(delayed(logVars)(df, col) for col in np.unique(vars_y + vars_y_obs).tolist()  + np.unique(vars_x[:-1] + vars_x_obs[:-1]).tolist()), axis = 1)
     
 # Add bhc
 df_log['bhc'] = df.bhc
@@ -285,32 +366,48 @@ df_log['bhc'] = df.bhc
 rssdid_lsers = df[df.ls_tot > 0].index.get_level_values(0).unique().tolist()
 df_log = df_log[df_log.index.get_level_values(0).isin(rssdid_lsers)]
 
+rssdid_secers = df[df.ls_sec > 0].index.get_level_values(0).unique().tolist()
+df_sec = df_log[df_log.index.get_level_values(0).isin(rssdid_secers)]
+
 # Add interaction term  and interacted instruments (based on t)
-for var, trans in zip(vars_x, vars_trans):
-    df_log[trans] = df_log[var] * (df_log.index.get_level_values(1).isin([pd.Timestamp('2001-12-31'), pd.Timestamp('2007-12-31'), pd.Timestamp('2008-12-31'), pd.Timestamp('2009-12-31')]) * 1)
+## With Recession
+df_log[vars_trans[0]] = df_log[vars_x[0]] * (df_log.index.get_level_values(1).isin([pd.Timestamp('2001-12-31'), pd.Timestamp('2007-12-31'), pd.Timestamp('2008-12-31'), pd.Timestamp('2009-12-31')]) * 1)
+df_sec[vars_trans[3]] = df_sec[vars_x[0]] * (df_sec.index.get_level_values(1).isin([pd.Timestamp('2001-12-31'), pd.Timestamp('2007-12-31'), pd.Timestamp('2008-12-31'), pd.Timestamp('2009-12-31')]) * 1)
+
+## With VIX
+df_log[vars_trans[1]] = df_log[vars_x[0]] * np.log(df.vix_mean)
+df_log[vars_trans[2]] = df_log[vars_x[0]] * np.log(df.vix_last)       
 
 # Lag x-vars 
-for var in vars_x + vars_trans:
+for var in vars_x + vars_trans[:3]:
     df_log[var] = df_log.groupby(df_log.index.get_level_values(0))[var].shift(1)
-
-# Take first difference ls_nonsec and loanlevel
-#df_log['ls_nonsec'] = df_log.groupby(df_log.index.get_level_values(0))['ls_nonsec'].diff(1)
-#df_log['loanlevel'] = df_log.groupby(df_log.index.get_level_values(0))['loanlevel'].diff(1)
+    
+for var in vars_x_obs + [vars_trans[-1]]:
+    df_sec[var] = df_sec.groupby(df_sec.index.get_level_values(0))[var].shift(1)
     
 # Drop na
 df_log.dropna(inplace = True)
+df_sec.dropna(inplace = True)
 
 #------------------------------------------------------------
-# Benchmark analysis
+# Robeust
 #------------------------------------------------------------
 
 # Set right-hand-side variables
-vars_rhs = [vars_x[0]] + [vars_trans[0]] + vars_x[1:]
+vars_rhs_vix_mean = [vars_x[0]] + [vars_trans[1]] + vars_x[1:]
+vars_rhs_vix_last = [vars_x[0]] + [vars_trans[2]] + vars_x[1:]
+vars_rhs_rw = vars_x
+vars_rhs_sec = [vars_x_obs[0]] + [vars_trans[3]] + vars_x_obs[1:]
+
+# Rolling window
+dates = df_log.index.get_level_values('date').year.unique()
 
 # Run
 if __name__ == '__main__':
-    results_benchmark = Parallel(n_jobs = num_cores)(delayed(benchmarkModel)(df_log, elem, vars_rhs) for elem in vars_y)
-    results_nointeract = Parallel(n_jobs = num_cores)(delayed(benchmarkModel)(df_log, elem, vars_x) for elem in vars_y)
+    results_vix_mean = Parallel(n_jobs = num_cores)(delayed(benchmarkModel)(df_log, elem, vars_rhs_vix_mean) for elem in vars_y)
+    results_vix_last = Parallel(n_jobs = num_cores)(delayed(benchmarkModel)(df_log, elem, vars_rhs_vix_last) for elem in vars_y) # Almost no difference with mean
+    results_rw = Parallel(n_jobs = num_cores)(delayed(benchmarkModel)(df_log[df_log.index.get_level_values('date').year.isin(roll_window)], elem, vars_rhs_rw) for elem in vars_y for roll_window in window(dates, 7))
+    results_sec = Parallel(n_jobs = num_cores)(delayed(benchmarkModel)(df_sec, elem, vars_rhs_sec) for elem in vars_y_obs)
 
 #------------------------------------------------------------
 # Make neat dataframes and transform to latex
@@ -318,25 +415,70 @@ if __name__ == '__main__':
 
 # Make pandas tables of the results
 ## Benchmark
-results_benchmark_list_dfs = []
+results_vix_mean_list_dfs = []
+results_sec_list_dfs = []
 
-for result in results_benchmark:
-    results_benchmark_list_dfs.append(summaryToDFBenchmark(result))
+for result in results_vix_mean:
+    results_vix_mean_list_dfs.append(summaryToDFBenchmark(result))
+    
+for result in results_sec:
+    results_sec_list_dfs.append(summaryToDFBenchmark(result))
     
 # Benchmark and FDIV stage 2
-col_label_step2 = ['({})'.format(i) for i in range(1,len(results_benchmark_list_dfs) + 1)]
-caption_step2 = 'Estimation Results Benchmark Model'
-label_step2 = 'tab:results_benchmark'
+col_label = ['({})'.format(i) for i in range(1,len(results_vix_mean_list_dfs) + 1)]
+caption = 'Estimation Results Robustness Check: Financial Cycle Measurement'
+label = 'tab:results_robust_vix'
 
-df_results, latex_results = concatResults(results_benchmark_list_dfs, col_label = col_label_step2,\
-                                                  caption = caption_step2, label = label_step2, step = 1)
+caption_sec = 'Estimation Results Robustness Check: Securitization'
+label_sec = 'tab:results_robust_sec'
+
+df_results, latex_results = concatResults(results_vix_mean_list_dfs, col_label = col_label,\
+                                                  caption = caption, label = label, step = 1)
+df_results_sec, latex_results_sec = concatResults(results_sec_list_dfs, col_label = col_label,\
+                                                  caption = caption_sec, label = label_sec, step = 1)
 
 #------------------------------------------------------------
 # Save df and latex file
 #------------------------------------------------------------
 
-df_results.to_csv('Results/Main/Step_2/Table_results_benchmark.csv')
+df_results.to_csv('Robustness_checks/Table_results_robust_vix.csv')
 
-text_file_latex_results = open('Results/Main/Step_2/Table_results_benchmark.tex', 'w')
+text_file_latex_results = open('Robustness_checks/Table_results_robust_vix.tex', 'w')
 text_file_latex_results.write(latex_results)
 text_file_latex_results.close()
+
+df_results_sec.to_csv('Robustness_checks/Table_results_robust_sec.csv')
+
+text_file_latex_results = open('Robustness_checks/Table_results_robust_sec.tex', 'w')
+text_file_latex_results.write(latex_results_sec)
+text_file_latex_results.close()
+
+
+#------------------------------------------------------------
+# Plot the Rolling averages
+#------------------------------------------------------------
+
+# Set labels and test vect
+year_labels = [i[len(i)//2] for i in window(dates, 7)]
+var_names = results_rw[0]._var_names
+
+# Get chunks
+coff, npl, allow, prov = chunkIt(results_rw,4)
+
+for p in range(len(var_names)):
+    ## Get params and stds
+    params_coff = [mod.params[p] for mod in coff]
+    params_npl = [mod.params[p] for mod in npl]
+    params_allow = [mod.params[p] for mod in allow]
+    params_prov = [mod.params[p] for mod in prov]
+    
+    std_errors_coff = [mod.std_errors[p] for mod in coff]
+    std_errors_npl = [mod.std_errors[p] for mod in npl]
+    std_errors_allow = [mod.std_errors[p] for mod in allow]
+    std_errors_prov = [mod.std_errors[p] for mod in prov]
+    
+    # Run models
+    plotRollingAverage(params_coff, std_errors_coff, 'net_coff', var_names[p])
+    plotRollingAverage(params_npl, std_errors_npl, 'npl', var_names[p])
+    plotRollingAverage(params_allow, std_errors_allow, 'allow', var_names[p])
+    plotRollingAverage(params_prov, std_errors_prov, 'prov', var_names[p])

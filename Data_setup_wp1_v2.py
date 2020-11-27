@@ -65,6 +65,10 @@ file_rce = r'/{}/FFIEC CDR Call Schedule RCE 1231{}.txt'
 
 file_rcg = r'/{}/FFIEC CDR Call Schedule RCG 1231{}.txt'
 
+file_rcl1 = r'/{}/FFIEC CDR Call Schedule RCL 1231{}.txt'
+file_rcl2_1 = r'/{}/FFIEC CDR Call Schedule RCL 1231{}(1 of 2).txt'  # From 2009
+file_rcl2_2 = r'/{}/FFIEC CDR Call Schedule RCL 1231{}(2 of 2).txt'  # From 2009
+
 file_rcn1 = r'/{}/FFIEC CDR Call Schedule RCN 1231{}.txt' 
 file_rcn2_1 = r'/{}/FFIEC CDR Call Schedule RCN 1231{}(1 of 2).txt'  # From 2011
 file_rcn2_2 = r'/{}/FFIEC CDR Call Schedule RCN 1231{}(2 of 2).txt'  # From 2011
@@ -76,7 +80,9 @@ file_rcr4_rcfd = r'/{}/FFIEC CDR Call Schedule RCRII 1231{}(1 of 4).txt' #from 2
 file_rcr1_rcon = r'/{}/FFIEC CDR Call Schedule RCR 1231{}(2 of 2).txt'
 file_rcr2_rcon = r'/{}/FFIEC CDR Call Schedule RCRII 1231{}(2 of 2).txt' #2014
 file_rcr3_rcon = r'/{}/FFIEC CDR Call Schedule RCRII 1231{}(2 of 3).txt' #from 2015
+file_rcr3b_rcon = r'/{}/FFIEC CDR Call Schedule RCRII 1231{}(3 of 3).txt' #from 2015
 file_rcr4_rcon = r'/{}/FFIEC CDR Call Schedule RCRII 1231{}(2 of 4).txt' #from 2017
+file_rcr4b_rcon = r'/{}/FFIEC CDR Call Schedule RCRII 1231{}(3 of 4).txt' #from 2017
 
 file_rcria = r'/{}/FFIEC CDR Call Schedule RCRIA 1231{}.txt' #2014
 file_rcrib = r'/{}/FFIEC CDR Call Schedule RCRIB 1231{}.txt' #2014
@@ -105,6 +111,11 @@ vars_rcc = '|'.join(['IDRSSD','1410','1415','1420','1797','1460','1288','1590','
                      '5367','5368','1480','F160','F161','1763','1764','2123']) 
 vars_rce = '|'.join(['IDRSSD','B549','B550','6648','2604','J473','J474','B535','2081'])
 vars_rcg = '|'.join(['IDRSSD', 'B557'])
+vars_rcl = '|'.join(['IDRSSD','3814','3815','3816','6550','3817','3818',\
+                     '3819','3821','3411','3428','3433','A534','A535',\
+                     '3430','5591','A126','A127','8723','8724','8725',\
+                     '8726','8727','8728','F164','F165','J477','J478',\
+                     'J457','J458','J459'] + ['C{}'.format(i) for i in range(968,975+1)])
 vars_rcn = '|'.join(['IDRSSD','2759','2769','3492','3493','3494','3495',\
                      '5398','5399','5400','5401','5402','5403',\
                      '3499','3500','3501','3502','3503','3504',\
@@ -119,7 +130,10 @@ vars_rcn = '|'.join(['IDRSSD','2759','2769','3492','3493','3494','3495',\
                      'F179','F181','F183','K213','K214','K215',\
                      'K216','K217','K218','F166','F167','F168',\
                      'F169','F170','F171','1406','1407','1408']) # Every first is <89; second >89; third nonaccrual. Last three at totals for FFIEC031 > 2011
-vars_rcr = '|'.join(['IDRSSD','B704','A222','3128','7204','7205','7206','A223'])
+vars_rcr = '|'.join(['IDRSSD','B704','A222','3128','7204','7205','7206','A223',\
+                     'B645','B650','B655','B660','B664','B669','2243','B676',\
+                     'B682','B687','A167','G592','D992','D998','G607','G613',\
+                     'S516','G619','S526','G625','S541','S542','S549'])
 vars_rcs = '|'.join(['IDRSSD','B705','B706','B707','B708','B709','B710','B711',\
                      'B790','B791','B792','B793','B794','B795','B796',\
                      'B747','B748','B749','B750','B751','B752','B753',\
@@ -187,6 +201,21 @@ def loadInfo(i,break_point):
         df_load = pd.read_sas((path_info + file_info2).format(i))
         
     return(df_load[vars_info])
+
+def loadRCL(i):
+    ''' A General function for loading call reports data, no breaks '''
+    global path_call
+    
+    if i < 2009:
+        df_load = pd.read_csv((path_call + file_rcl1).format(i,i), sep='\t',  skiprows = [1,2])
+    else:
+        df_load_1 = pd.read_csv((path_call + file_rcl2_1).format(i,i), sep='\t',  skiprows = [1,2])
+        df_load_2 = pd.read_csv((path_call + file_rcl2_2).format(i,i), sep='\t',  skiprows = [1,2])
+        df_load = df_load_1.merge(df_load_2, on = 'IDRSSD', how = 'left')
+
+    df_load['date'] = int('{}'.format(i))  
+    
+    return(df_load.loc[:,df_load.columns.str.contains(vars_rcl + '|date')])    
     
 def loadRCN(i):
     ''' A General function for loading call reports data, no breaks '''
@@ -223,10 +252,13 @@ def loadRCR(i):
                  sep='\t',  skiprows = [1,2]) 
         df_load_rcon = pd.read_csv((path_call + file_rcr3_rcon).format(i,i), \
                  sep='\t',  skiprows = [1,2])
+        df_load_rcon2 = pd.read_csv((path_call + file_rcr3b_rcon).format(i,i), \
+                 sep='\t',  skiprows = [1,2])
         df_load_rcri = pd.read_csv((path_call + file_rcri2).format(i,i), \
                  sep='\t',  skiprows = [1,2])
         
         df_load = df_load_rcfd.merge(df_load_rcon, on = 'IDRSSD', how = 'left')
+        df_load = df_load.merge(df_load_rcon2, on = 'IDRSSD', how = 'left')
         df_load = df_load.merge(df_load_rcri, on = 'IDRSSD', how = 'left')
         
     elif i > 2016:
@@ -234,10 +266,13 @@ def loadRCR(i):
                  sep='\t',  skiprows = [1,2]) 
         df_load_rcon = pd.read_csv((path_call + file_rcr4_rcon).format(i,i), \
                  sep='\t',  skiprows = [1,2])
+        df_load_rcon2 = pd.read_csv((path_call + file_rcr4b_rcon).format(i,i), \
+                 sep='\t',  skiprows = [1,2])
         df_load_rcri = pd.read_csv((path_call + file_rcri2).format(i,i), \
                  sep='\t',  skiprows = [1,2])
         
         df_load = df_load_rcfd.merge(df_load_rcon, on = 'IDRSSD', how = 'left')
+        df_load = df_load.merge(df_load_rcon2, on = 'IDRSSD', how = 'left')
         df_load = df_load.merge(df_load_rcri, on = 'IDRSSD', how = 'left')
         
     else:
@@ -300,7 +335,7 @@ if __name__ == '__main__':
 cols_remove =  [col for col in df_rc.columns if not col[4:] in var_num]     
 df_rc = pd.concat([df_rc[cols_remove], df_rc_combvars], axis = 1)    
 
-df_rc['RC2200'] = df_rc.apply(lambda x: x['RCFN2200'] if not np.isnan(x['RCFN2200']) and round(x['RCFN2200']) != 0 else (x['RCON2200']), axis = 1)    
+df_rc['RC2200'] = df_rc.loc[:,['RCFN2200','RCON2200']].sum(axis = 1)
  
 #------------------------------------------
 ## Load rcb data
@@ -346,6 +381,20 @@ df_rcg.columns = ['IDRSSD', 'RCFDB557', 'RCONB557', 'date']
 df_rcg['RCB557'] = combineVars(df_rcg, 'B557')
 
 #------------------------------------------
+## Load rcl data
+if __name__ == '__main__':
+    df_rcl = pd.concat(Parallel(n_jobs=num_cores)(delayed(loadRCL)(i) for i in range(start, end)))
+    
+### Merge RCFD and RCON cols
+var_num = [elem for elem in vars_rcl.split('|') if np.sum(df_rcl.columns.str.contains(elem)) == 2]
+
+if __name__ == '__main__':
+    df_rcl_combvars = pd.concat(Parallel(n_jobs=num_cores)(delayed(combineVars)(df_rcl, elem) for elem in var_num), axis = 1)
+
+cols_remove = [col for col in df_rcl.columns if not col[4:] in var_num] 
+df_rcl = pd.concat([df_rcl[cols_remove], df_rcl_combvars], axis = 1)   
+
+#------------------------------------------
 ## Load rcn data
 if __name__ == '__main__':
     df_rcn = pd.concat(Parallel(n_jobs=num_cores)(delayed(loadRCN)(i) for i in range(start, end)))
@@ -368,7 +417,10 @@ if __name__ == '__main__':
 df_rcr['RCFDG641'] = df_rcr.RCFDB704 - df_rcr.RCFDA222 - df_rcr.RCFD3128
 df_rcr['RCONG641'] = df_rcr.RCONB704 - df_rcr.RCONA222 - df_rcr.RCON3128
 
-var_num = ['G641','B704','A222','3128','A223']
+var_num = ['G641','B704','A222','3128','A223',\
+           'B645','B650','B655','B660','B664','B669','2243','B676',\
+           'B682','B687','A167','G592','D992','D998','G607','G613',\
+           'S516','G619','S526','G625','S541','S542','S549']
 
 if __name__ == '__main__':
     df_rcr_combvars = pd.concat(Parallel(n_jobs=num_cores)(delayed(combineVars)(df_rcr, elem) for elem in var_num), axis = 1)
@@ -389,8 +441,8 @@ df_rcr.loc[:,df_rcr.columns.str.contains(vars_trans)] = df_rcr.loc[:,df_rcr.colu
 var_num = ['7204','7205','7206']
 
 for elem in var_num:
-    df_rcr['RCF{}'.format(elem)] = df_rcr.loc[:,['RCFA{}'.format(elem), 'RCFD{}'.format(elem)]].sum(axis = 1)
-    df_rcr['RCO{}'.format(elem)] = df_rcr.loc[:,['RCOA{}'.format(elem), 'RCON{}'.format(elem)]].sum(axis = 1)
+    df_rcr['RCF{}'.format(elem)] = df_rcr.loc[:,'RCFD{}'.format(elem)].fillna(df_rcr.loc[:,'RCFA{}'.format(elem)])
+    df_rcr['RCO{}'.format(elem)] = df_rcr.loc[:,'RCON{}'.format(elem)].fillna(df_rcr.loc[:,'RCOA{}'.format(elem)])
 
 if __name__ == '__main__':
     df_rcr_combvars = pd.concat(Parallel(n_jobs=num_cores)(delayed(combineVarsAlt)(df_rcr, elem) for elem in var_num), axis = 1)
@@ -440,6 +492,7 @@ df_raw = df_rc.merge(df_rcc, on = ['IDRSSD', 'date'], how = 'left')
 df_raw = df_raw.merge(df_rcb, on = ['IDRSSD', 'date'], how = 'left')
 df_raw = df_raw.merge(df_rce, on = ['IDRSSD', 'date'], how = 'left')
 df_raw = df_raw.merge(df_rcg, on = ['IDRSSD', 'date'], how = 'left')
+df_raw = df_raw.merge(df_rcl, on = ['IDRSSD', 'date'], how = 'left')
 df_raw = df_raw.merge(df_rcn, on = ['IDRSSD', 'date'], how = 'left')
 df_raw = df_raw.merge(df_rcr, on = ['IDRSSD', 'date'], how = 'left')
 df_raw = df_raw.merge(df_rcs, on = ['IDRSSD', 'date'], how = 'left')
