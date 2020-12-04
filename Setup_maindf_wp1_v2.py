@@ -108,6 +108,18 @@ df.loc[:,'npl_off'] = (df_filtered.loc[:,['RCB740','RCB741','RCB742','RCB743','R
 
 df.loc[:,'npl_tot'] = (df.npl90 + df.nplna + df_filtered.loc[:,['RCB740','RCB741','RCB742','RCB743','RCB744','RCB745','RCB746']].sum(axis = 1, skipna = True)).divide(df_filtered.loc[:,['RC2122', 'RC2123','RCB705','RCB706','RCB707','RCB708','RCB709','RCB710','RCB711','RCONFT08']].sum(axis = 1, skipna = True))
 
+## Deliquent and Defaulted OBS loans
+## NOTE: OBS npl + charge-offs
+df.loc[:,'ddl_off'] = (df_filtered.loc[:,['RCB740','RCB741','RCB742','RCB743',\
+                      'RCB744','RCB745','RCB746']].sum(axis = 1, skipna = True) +\
+                       df_filtered[['RIADB747','RIADB748','RIADB749','RIADB750',\
+                      'RIADB751','RIADB752','RIADB753']].sum(axis = 1) - \
+                       df_filtered[['RIADB754','RIADB755','RIADB756','RIADB757',\
+                                    'RIADB758','RIADB759','RIADB760']].sum(axis = 1)).\
+                       divide(df_filtered.loc[:,['RCB705','RCB706',\
+                      'RCB707','RCB708','RCB709','RCB710','RCB711','RCONFT08']].\
+                       sum(axis = 1, skipna = True)).fillna(0.0).replace([np.inf, -np.inf], 0)
+
 ## RWATA
 df.loc[:,'rwata'] = df_filtered.RCG641 / df_filtered.RC2170
 
@@ -120,7 +132,7 @@ df.loc[:,'allow_off_ta'] = df_filtered.RCB557.divide(df_filtered.RC2170).replace
 
 ### Revenue based 
 ### From Boyd & Gertler (1994). Used by: Clark & Siems (2002), Calmès & Théoret (2010)
-df.loc[:,'obs_ta_rb'] = df_filtered.RC2170.multiply(df_filtered.RIAD4079.divide(df_filtered.RIAD4074.subtract(df_filtered.RIAD4230))).abs().replace([np.inf,-np.inf], 0)
+df.loc[:,'obs_ta_rb'] = df_filtered.RC2170.multiply(df_filtered.RIAD4079.divide(df_filtered.RIAD4074.subtract(df_filtered.RIAD4230))).replace([np.inf,-np.inf], 0).abs()
 df.loc[:,'allow_off_rb'] = df_filtered.RCB557.divide(df.obs_ta_rb).replace([np.inf,-np.inf, np.nan], 0)
 
 ### OBS items
@@ -140,8 +152,8 @@ df.loc[:,'allow_off_items'] = df_filtered.RCB557.divide(df.obs_ta_items).replace
 ### Credit Equivalent Amounts
 ### Based on Clark & Siems (2002)
 df.loc[:,'obs_ta_cea'] = df_filtered.loc[:,['RCB645','RCB650','RCB655','RCB660','RCB664',\
-                     'RCB669','RC2243','RCB676','RCB682','RCB687','RCA167','RCG592',\
-                     'RCD992','RCD998','RCG607','RCG613','RCS516','RCG619','RCS526',\
+                     'RCB676','RCB682','RCB687','RCA167','RCG592',\
+                     'RCD992','RCD998','RCG607','RCS516','RCG619','RCS526',\
                      'RCG625', 'RCS541','RCS542','RCS549']].sum(axis = 1)
 
 df.loc[:,'allow_off_cea'] = df_filtered.RCB557.divide(df.obs_ta_cea).replace([np.inf,-np.inf, np.nan], 0)
@@ -197,7 +209,7 @@ df.loc[:,'loanhhi'] = df.loc[:,['mortratio','consloanratio','comloanratio','agri
 df.loc[:,'costinc'] = ((df_filtered.RIAD4093) / (df_filtered.RIAD4074 + df_filtered.RIAD4079)).replace(np.inf, np.nan)
 
 ## Size
-df.loc[:,'size'] = np.log(df_filtered.RC2170) 
+df.loc[:,'size'] = df_filtered.RC2170 
 
 ## BHC Indicator
 df.loc[:,'bhc'] = (round(df_filtered.RSSD9364) > 0.0) * 1
@@ -227,27 +239,107 @@ df.loc[:,'mace_sec'] = df_filtered.loc[:,['RCB712','RCB713','RCB714','RCB715','R
 df.loc[:,'mace_nonsec'] = df_filtered.loc[:,['RCB797','RCB798','RCB799','RCB800','RCB801','RCB802','RCB803']].sum(axis = 1, skipna = True)
 
 ### Credit exposure
-df.loc[:,'credex_sec_io'] = (df.loc[:,'mace_sec_io'] / df_filtered.loc[:,['RCB705','RCB706','RCB707','RCB708','RCB709','RCB710',\
-               'RCB711','RCONFT08']].sum(axis = 1, skipna = True)).replace(np.inf, 0).replace(np.nan, 0)
-df.loc[:,'credex_sec_subloc'] = (df.loc[:,'mace_sec_subloc'] / df_filtered.loc[:,['RCB705','RCB706','RCB707','RCB708','RCB709','RCB710',\
-               'RCB711','RCONFT08']].sum(axis = 1, skipna = True)).replace(np.inf, 0).replace(np.nan, 0)
 df.loc[:,'credex_sec'] = (df.loc[:,'mace_sec'] / df_filtered.loc[:,['RCB705','RCB706','RCB707','RCB708','RCB709','RCB710',\
                'RCB711','RCONFT08']].sum(axis = 1, skipna = True)).replace(np.inf, 0).replace(np.nan, 0)
 df['credex_nonsec'] = (df.loc[:,'mace_nonsec'] /  df_filtered.loc[:,['RCB790','RCB791','RCB792','RCB793','RCB794','RCB795',\
                   'RCB796','RCONFT10']].sum(axis = 1, skipna = True)).replace(np.inf, 0).replace(np.nan, 0)
-df['credex_tot'] = (df.loc[:,['mace_sec','mace_nonsec']].sum(axis = 1, skipna = True) / df_filtered.loc[:,['RCB705','RCB706','RCB707','RCB708','RCB709','RCB710',\
+df['credex_sbo'] = (df_filtered.loc[:,'RCA250'] / df_filtered.loc[:,'RCA249']).replace(np.nan, 0)
+    
+df['credex_tot'] = (df.loc[:,['mace_sec','mace_nonsec']].sum(axis = 1, skipna = True).add(df_filtered.loc[:,'RCA250']) / df_filtered.loc[:,['RCB705','RCB706','RCB707','RCB708','RCB709','RCB710',\
                'RCB711','RCB790','RCB791','RCB792','RCB793','RCB794','RCB795',\
-                  'RCB796','RCONFT08','RCONFT10']].sum(axis = 1, skipna = True)).replace(np.inf, 0).replace(np.nan, 0)
-                          
+                  'RCB796','RCONFT08','RCONFT10','RCA249']].sum(axis = 1, skipna = True)).replace(np.inf, 0).replace(np.nan, 0)
+df['credex_tot_alt'] = (df.loc[:,['mace_sec','mace_nonsec']].sum(axis = 1, skipna = True).add(df_filtered.loc[:,['RCA250','RCB745','RCB746','RCB776','RCB777','RCB778','RCB779','RCB780']].sum(axis = 1, skipna = True)) / df.obs_ta_cea).replace([np.inf,-np.inf, np.nan], 0)
+    
 '''NOTE: Any variables for figures could be taken from the filtered raw data 
     and the final data'''
-    
+
+#------------------------------------------------------------
+# Add variables for measuring the business cycle.
+#------------------------------------------------------------
+# VIX data (Yahoo finance)
+df_vix = pd.read_csv('D:\RUG\Data\Time_series\VIX\VIX.csv')
+
+## Make Date datetime
+df_vix.Date = pd.to_datetime(df_vix.Date)
+
+## Transform to yearly data
+### Take mean
+df_vix_mean = df_vix.groupby(df_vix.Date.dt.year).mean()
+
+### Take last
+df_vix_last = df_vix.groupby(df_vix.Date.dt.year).last()
+
+### Merge datasets
+df.loc[:,'vix_mean'] = df_vix_mean.loc[df.date, 'Close'].values
+df.loc[:,'vix_last'] = df_vix_last.loc[df.date, 'Close'].values
+
+# Data Total Factor Productivity (FRB San Francisco)
+df_tfp = pd.read_excel('D:\RUG\Data\Time_series\FRBSF\quarterly_tfp.xlsx', sheet_name = 'annual')
+df_tfp.index = df_tfp.date
+
+df.loc[:,'tfp'] = df_tfp.loc[df.date,'dtfp_util'].values
+
+# FRED data sets
+## Producer Confidence
+df_fred_pc = pd.read_csv('D:\RUG\Data\Time_series\FRED\FRED_BTS_prod_confidence.csv')
+df_fred_pc.DATE = pd.to_datetime(df_fred_pc.DATE)
+
+### Take mean and last
+df_fred_pc_mean = (df_fred_pc.groupby(df_fred_pc.DATE.dt.year).BSCICP03USM665S.mean() - 1e2) / 1e2
+df_fred_pc_last = (df_fred_pc.groupby(df_fred_pc.DATE.dt.year).BSCICP03USM665S.last() - 1e2) / 1e2
+
+### Merge datasets
+df.loc[:,'pc_mean'] = df_fred_pc_mean.loc[df.date].values
+df.loc[:,'pc_last'] = df_fred_pc_last.loc[df.date].values
+
+## GDP Growth
+df_fred_gdp = pd.read_csv('D:\RUG\Data\Time_series\World_Bank\API_NY.GDP.MKTP.KD.ZG_DS2_en_csv_v2_1740234.csv', skiprows = [0, 1, 2, 3])
+
+### Get the US 
+df_fred_gdp_growth = df_fred_gdp.loc[df_fred_gdp['Country Code'] == 'USA',list(map(str, range(1960,2019+1)))].T
+
+### Change index to int
+df_fred_gdp_growth.index = df_fred_gdp_growth.index.astype(int)
+
+### Merge datasets
+df.loc[:,'gdp'] = df_fred_gdp_growth.loc[df.date].values
+
+## Consumer Sentiment
+df_fred_cs = pd.read_csv('D:\RUG\Data\Time_series\FRED\FRED_UniMichigan_consumer_sentiment.csv', na_values ='.')
+df_fred_cs.dropna(inplace = True)
+df_fred_cs.DATE = pd.to_datetime(df_fred_cs.DATE)
+
+### Take mean and last
+df_fred_cs_mean = (df_fred_cs.groupby(df_fred_cs.DATE.dt.year).UMCSENT.mean() - 1e2) / 1e2
+df_fred_cs_last = (df_fred_cs.groupby(df_fred_cs.DATE.dt.year).UMCSENT.last() - 1e2) / 1e2
+
+### Merge datasets
+df.loc[:,'cs_mean'] = df_fred_cs_mean.loc[df.date].values
+df.loc[:,'cs_last'] = df_fred_cs_mean.loc[df.date].values    
+
+## Real investment growth
+df_fred_rig = pd.read_csv('D:\RUG\Data\Time_series\FRED\FRED_RGPDI.csv')
+df_fred_rig.DATE = pd.to_datetime(df_fred_rig.DATE)
+
+### Take mean
+df_fred_rig_mean = df_fred_rig.groupby(df_fred_rig.DATE.dt.year).A006RL1A225NBEA.mean() / 100
+
+### Merge datasets
+df.loc[:,'rig_mean'] = df_fred_rig_mean.loc[df.date].values
+
+
+#------------------------------------------------------------
+# Add Dodd-Frank dummy, see Bordo & Duca (2018; NBER)
+#------------------------------------------------------------
+
+df.loc[:,'dodd'] = [1 if date > 2010 else .5 if date == 2010 else 0 for date in df.date]
+
+''' 
 # Variables for instruments
 ## Employees and log Employees
 df.loc[:,'empl'] = df_filtered.RIAD4150
-df.loc[:,'log_empl'] = np.log(df_filtered.RIAD4150 + 1)    
-
-'''    
+df.loc[:,'log_empl'] = np.log(df_filtered.RIAD4150 + 1)
+   
 from Code_docs.help_functions.Proxies_org_complex_banks import LimitedServiceBranches,\
      spatialComplexity, noBranchBank, readSODFiles
 
@@ -297,11 +389,12 @@ vars_limit = ['roa']
 for i in vars_limit:
     df = df[df['{}'.format(i)].between(-1,1,inclusive = True)]
     
-# Limit RC7205 to [0,1] 
-vars_limit = ['loanratio','reg_cap','mortratio']
+# Limit vars to [0,1] 
+vars_limit = ['loanratio','reg_cap','mortratio','allow_off_cea']
 
 for i in vars_limit:
     df = df[df['{}'.format(i)].between(0,1,inclusive = True)]   
+    
 
 #------------------------------------------
 ## Save df

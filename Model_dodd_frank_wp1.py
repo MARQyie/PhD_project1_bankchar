@@ -97,6 +97,10 @@ def estimationTable(df, show = 'pval', stars = False, col_label = 'Est. Results'
                  'credex_tot_recession':'Recourse $\times$ Recession',
                  'credex_nonsec':'Recourse',
                  'credex_nonsec_recession':'Recourse $\times$ Recession',
+                 'credex_sec':'Recourse (Sec.)',
+                 'credex_sec_recession':'Recourse (Sec.) $\times$ Recession',
+                 'credex_tot_dodd':'Recourse $\times$ DFA',
+                 'credex_sec_dodd':'Recourse (Sec.) $\times$ DFA',
                  'endo_hat':'Recourse',
                  'endo_int_hat':'Recourse $\times$ Recession',
                  'reg_cap':'Capital Ratio',
@@ -267,27 +271,27 @@ df.set_index(['IDRSSD','date'],inplace=True)
 
 # Set list with variables to use
 #vars_y = ['ls_nonsec','loanlevel','net_coff_on','npl_on','allow_tot','prov_ratio']
-vars_y = ['net_coff_on','npl_on','allow_on','prov_ratio']
-vars_y_obs = ['allow_off_rb','allow_off_cea','ddl_off']
+vars_y = ['net_coff_on','npl_on','allow_on','prov_ratio','allow_off_rb','allow_off_cea','ddl_off']
 #vars_y = ['allow_off_rb','allow_off_items','allow_off_cea','net_coff_on','npl_on','allow_on','prov_ratio']
-vars_x = ['credex_tot', 'reg_cap', 'loanratio', 'roa', 'depratio',\
+vars_x = ['credex_sec', 'reg_cap', 'loanratio', 'roa', 'depratio',\
           'comloanratio', 'mortratio','consloanratio', 'loanhhi', 'costinc',\
           'size','bhc']
-vars_trans = ['credex_tot_recession']
+vars_trans = ['credex_sec_recession', 'credex_sec_dodd']
 
 # Log the data
 if __name__ == '__main__':
-    df_log = pd.concat(Parallel(n_jobs = num_cores)(delayed(logVars)(df, col) for col in vars_y + vars_y_obs + vars_x[:-1]), axis = 1)
+    df_log = pd.concat(Parallel(n_jobs = num_cores)(delayed(logVars)(df, col) for col in vars_y + vars_x[:-1]), axis = 1)
     
 # Add bhc
 df_log['bhc'] = df.bhc
 
 # Limit subset to loan sellers
-rssdid_lsers = df[df.ls_tot > 0].index.get_level_values(0).unique().tolist()
+rssdid_lsers = df[df.ls_sec > 0].index.get_level_values(0).unique().tolist()
 df_log = df_log[df_log.index.get_level_values(0).isin(rssdid_lsers)]
 
 # Add interaction term  and interacted instruments (based on t)
 df_log[vars_trans[0]] = df_log[vars_x[0]] * (df_log.index.get_level_values(1).isin([pd.Timestamp('2001-12-31'), pd.Timestamp('2007-12-31'), pd.Timestamp('2008-12-31'), pd.Timestamp('2009-12-31')]) * 1)
+df_log[vars_trans[1]] = df_log[vars_x[0]] * df[df.index.get_level_values(0).isin(rssdid_lsers)].dodd
 
 # Lag x-vars 
 for var in vars_x + vars_trans:
@@ -305,12 +309,13 @@ df_log.dropna(inplace = True)
 #------------------------------------------------------------
 
 # Set right-hand-side variables
-vars_rhs_dum = [vars_x[0]] + [vars_trans[0]] + vars_x[1:]
+vars_rhs_nododd = [vars_x[0]] + [vars_trans[0]]  + vars_x[1:]
+vars_rhs_dodd = [vars_x[0]] + [vars_trans[0]] + [vars_trans[1]]  + vars_x[1:]
 
 # Run
 if __name__ == '__main__':
-    results_benchmark_bs = Parallel(n_jobs = num_cores)(delayed(benchmarkModel)(df_log, elem, vars_rhs_dum) for elem in vars_y)
-    results_benchmark_obs = Parallel(n_jobs = num_cores)(delayed(benchmarkModel)(df_log, elem, vars_rhs_dum) for elem in vars_y_obs)
+    results_nododd = Parallel(n_jobs = num_cores)(delayed(benchmarkModel)(df_log, elem, vars_rhs_nododd) for elem in vars_y)
+    results_dodd = Parallel(n_jobs = num_cores)(delayed(benchmarkModel)(df_log, elem, vars_rhs_dodd) for elem in vars_y)
 
 #------------------------------------------------------------
 # Make neat dataframes and transform to latex
@@ -318,41 +323,45 @@ if __name__ == '__main__':
 
 # Make pandas tables of the results
 ## Benchmark
-results_benchmark_bs_list_dfs = []
-results_benchmark_obs_list_dfs = []
+results_benchmark_dodd_list_dfs = []
+results_benchmark_nododd_list_dfs = []
 
-for result in results_benchmark_bs:
-    results_benchmark_bs_list_dfs.append(summaryToDFBenchmark(result))
+for result in results_dodd:
+    results_benchmark_dodd_list_dfs.append(summaryToDFBenchmark(result))
 
-for result in results_benchmark_obs:
-    results_benchmark_obs_list_dfs.append(summaryToDFBenchmark(result))
-    
+for result in results_nododd:
+    results_benchmark_nododd_list_dfs.append(summaryToDFBenchmark(result))
+
 # Benchmark
-col_label_bs = ['({})'.format(i) for i in range(1,len(results_benchmark_bs_list_dfs) + 1)]
-caption_bs = 'Estimation Results Benchmark Model: On-Balance-Sheet Risk'
-label_bs = 'tab:results_benchmark_bs'
+col_label_nododd = ['({})'.format(i) for i in range(1,len(results_benchmark_nododd_list_dfs) + 1)]
+caption_nododd = 'Estimation Results Robustness Check: Securitization Only'
+label_nododd = 'tab:results_robust_nododd'
 
-col_label_obs = ['({})'.format(i) for i in range(1,len(results_benchmark_obs_list_dfs) + 1)]
-caption_obs = 'Estimation Results Benchmark Model: Off-Balance-Sheet Risk'
-label_obs = 'tab:results_benchmark_obs'
+col_label_dodd = ['({})'.format(i) for i in range(1,len(results_benchmark_dodd_list_dfs) + 1)]
+caption_dodd = 'Estimation Results Robustness Check: Dodd-Frank and Securitization'
+label_dodd = 'tab:results_robust_dodd'
 
-df_results_bs, latex_results_bs = concatResults(results_benchmark_bs_list_dfs, col_label = col_label_bs,\
-                                                  caption = caption_bs, label = label_bs, step = 1)
 
-df_results_obs, latex_results_obs = concatResults(results_benchmark_obs_list_dfs, col_label = col_label_obs,\
-                                                  caption = caption_obs, label = label_obs, step = 1)
+df_results_dodd, latex_results_dodd = concatResults(results_benchmark_dodd_list_dfs, col_label = col_label_dodd,\
+                                                  caption = caption_dodd, label = label_dodd, step = 1)
+    
+
+df_results_nododd, latex_results_nododd = concatResults(results_benchmark_nododd_list_dfs, col_label = col_label_nododd,\
+                                                  caption = caption_nododd, label = label_nododd, step = 1)
+
+
 #------------------------------------------------------------
 # Save df and latex file
 #------------------------------------------------------------
 
-df_results_bs.to_csv('Results/Main/Step_2/Table_results_benchmark_bs.csv')
+df_results_nododd.to_csv('Robustness_checks/Table_results_robust_nododd.csv')
 
-text_file_latex_results = open('Results/Main/Step_2/Table_results_benchmark_bs.tex', 'w')
-text_file_latex_results.write(latex_results_bs)
+text_file_latex_results = open('Robustness_checks/Table_results_robust_nododd.tex', 'w')
+text_file_latex_results.write(latex_results_nododd)
 text_file_latex_results.close()
 
-df_results_obs.to_csv('Results/Main/Step_2/Table_results_benchmark_obs.csv')
+df_results_dodd.to_csv('Robustness_checks/Table_results_robust_dodd.csv')
 
-text_file_latex_results = open('Results/Main/Step_2/Table_results_benchmark_obs.tex', 'w')
-text_file_latex_results.write(latex_results_obs)
+text_file_latex_results = open('Robustness_checks/Table_results_robust_dodd.tex', 'w')
+text_file_latex_results.write(latex_results_dodd)
 text_file_latex_results.close()
