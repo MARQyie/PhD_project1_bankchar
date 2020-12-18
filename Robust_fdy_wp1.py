@@ -242,19 +242,11 @@ def concatResults(df_list, show = 'pval', stars = False, col_label = None, capti
     ## Add note to the table
     # TODO: Add std, tval and stars option
     if step == 1:
-        note_string = '\\begin{tablenotes}\n\\scriptsize\n\item\\textit{Notes.} P-value in parentheses. The model is estimated with clustered standard errors on the bank-level.\\end{tablenotes}\n'
+        note_string = '\justify\n\\scriptsize{\\textit{Notes.} P-value in parentheses. The model is estimated with clustered standard errors on the bank-level.}\n'
     else:
         note_string = '\justify\n\\scriptsize{\\textit{Notes.} P-value in parentheses. The model is estimated with clustered standard errors on the bank-level.}\n'
     location = results_latex.find('\end{tabular}\n')
     results_latex = results_latex[:location + len('\end{tabular}\n')] + note_string + results_latex[location + len('\end{tabular}\n'):]
-    
-        # Make threeparttable
-    location_centering = results_latex.find('\centering\n')
-    results_latex = results_latex[:location_centering + len('\centering\n')] + '\\begin{threeparttable}\n' + results_latex[location_centering + len('\centering\n'):]
-    
-    location_endtable = results_latex.find('\\end{tablenotes}\n')
-    results_latex = results_latex[:location_endtable + len('\\end{tablenotes}\n')] + '\\end{threeparttable}\n' + results_latex[location_endtable + len('\\end{tablenotes}\n'):]
-    
     
     return results,results_latex
 
@@ -276,18 +268,15 @@ df.set_index(['IDRSSD','date'],inplace=True)
 #------------------------------------------------------------
 
 # Set list with variables to use
-#vars_y = ['ls_nonsec','loanlevel','net_coff_on','npl_on','allow_tot','prov_ratio']
-vars_y = ['net_coff_on','allow_on','prov_ratio']
-vars_y_obs = ['allow_off_rb','allow_off_cea','ddl_off']
-#vars_y = ['allow_off_rb','allow_off_items','allow_off_cea','net_coff_on','npl_on','allow_on','prov_ratio']
+vars_y = ['net_coff_on','npl_on','allow_on','prov_ratio','allow_off_rb','allow_off_cea','ddl_off']
 vars_x = ['credex_tot', 'reg_cap', 'loanratio', 'roa', 'depratio',\
           'comloanratio', 'mortratio','consloanratio', 'loanhhi', 'costinc',\
           'size','bhc']
-vars_trans = ['credex_tot_recession']
+vars_trans = ['credex_tot_recession','credex_tot_dodd']
 
 # Log the data
 if __name__ == '__main__':
-    df_log = pd.concat(Parallel(n_jobs = num_cores)(delayed(logVars)(df, col) for col in vars_y + vars_y_obs + vars_x[:-1]), axis = 1)
+    df_log = pd.concat(Parallel(n_jobs = num_cores)(delayed(logVars)(df, col) for col in vars_y + vars_x[:-1]), axis = 1)
     
 # Add bhc
 df_log['bhc'] = df.bhc
@@ -298,11 +287,15 @@ df_log = df_log[df_log.index.get_level_values(0).isin(rssdid_lsers)]
 
 # Add interaction term  and interacted instruments (based on t)
 df_log[vars_trans[0]] = df_log[vars_x[0]] * (df_log.index.get_level_values(1).isin([pd.Timestamp('2001-12-31'), pd.Timestamp('2007-12-31'), pd.Timestamp('2008-12-31'), pd.Timestamp('2009-12-31')]) * 1)
-#df_log[vars_trans[1]] = df_log[vars_x[0]] * df[df.index.get_level_values(0).isin(rssdid_lsers)].dodd
+df_log[vars_trans[1]] = df_log[vars_x[0]] * df[df.index.get_level_values(0).isin(rssdid_lsers)].dodd
 
 # Lag x-vars 
 for var in vars_x + vars_trans:
     df_log[var] = df_log.groupby(df_log.index.get_level_values(0))[var].shift(1)
+    
+# First-difference y-vars 
+for var in vars_y:
+    df_log[var] = df_log.groupby(df_log.index.get_level_values(0))[var].diff(1)
 
 # Take first difference ls_nonsec and loanlevel
 #df_log['ls_nonsec'] = df_log.groupby(df_log.index.get_level_values(0))['ls_nonsec'].diff(1)
@@ -321,7 +314,6 @@ vars_rhs_dum = [vars_x[0]] + vars_trans + vars_x[1:]
 # Run
 if __name__ == '__main__':
     results_benchmark_bs = Parallel(n_jobs = num_cores)(delayed(benchmarkModel)(df_log, elem, vars_rhs_dum) for elem in vars_y)
-    results_benchmark_obs = Parallel(n_jobs = num_cores)(delayed(benchmarkModel)(df_log, elem, vars_rhs_dum) for elem in vars_y_obs)
 
 #------------------------------------------------------------
 # Make neat dataframes and transform to latex
@@ -330,40 +322,26 @@ if __name__ == '__main__':
 # Make pandas tables of the results
 ## Benchmark
 results_benchmark_bs_list_dfs = []
-results_benchmark_obs_list_dfs = []
 
 for result in results_benchmark_bs:
     results_benchmark_bs_list_dfs.append(summaryToDFBenchmark(result))
 
-for result in results_benchmark_obs:
-    results_benchmark_obs_list_dfs.append(summaryToDFBenchmark(result))
     
 # Benchmark
 col_label_bs = ['({})'.format(i) for i in range(1,len(results_benchmark_bs_list_dfs) + 1)]
-caption_bs = 'Estimation Results Benchmark Model: On-Balance-Sheet Risk'
-label_bs = 'tab:results_benchmark_bs'
-
-col_label_obs = ['({})'.format(i) for i in range(1,len(results_benchmark_obs_list_dfs) + 1)]
-caption_obs = 'Estimation Results Benchmark Model: Off-Balance-Sheet Risk'
-label_obs = 'tab:results_benchmark_obs'
+caption_bs = 'Estimation Results Robustness Check: First-Difference'
+label_bs = 'tab:robust_fdy'
 
 df_results_bs, latex_results_bs = concatResults(results_benchmark_bs_list_dfs, col_label = col_label_bs,\
                                                   caption = caption_bs, label = label_bs, step = 1)
 
-df_results_obs, latex_results_obs = concatResults(results_benchmark_obs_list_dfs, col_label = col_label_obs,\
-                                                  caption = caption_obs, label = label_obs, step = 1)
 #------------------------------------------------------------
 # Save df and latex file
 #------------------------------------------------------------
 
-df_results_bs.to_csv('Results/Main/Step_2/Table_results_benchmark_bs.csv')
+df_results_bs.to_csv('Robustness_checks/Table_results_robust_fd.csv')
 
-text_file_latex_results = open('Results/Main/Step_2/Table_results_benchmark_bs.tex', 'w')
+text_file_latex_results = open('Robustness_checks/Table_results_robust_fd.tex', 'w')
 text_file_latex_results.write(latex_results_bs)
 text_file_latex_results.close()
 
-df_results_obs.to_csv('Results/Main/Step_2/Table_results_benchmark_obs.csv')
-
-text_file_latex_results = open('Results/Main/Step_2/Table_results_benchmark_obs.tex', 'w')
-text_file_latex_results.write(latex_results_obs)
-text_file_latex_results.close()

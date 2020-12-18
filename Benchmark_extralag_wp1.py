@@ -277,13 +277,13 @@ df.set_index(['IDRSSD','date'],inplace=True)
 
 # Set list with variables to use
 #vars_y = ['ls_nonsec','loanlevel','net_coff_on','npl_on','allow_tot','prov_ratio']
-vars_y = ['net_coff_on','allow_on','prov_ratio']
+vars_y = ['net_coff_on','npl_on','allow_on','prov_ratio']
 vars_y_obs = ['allow_off_rb','allow_off_cea','ddl_off']
 #vars_y = ['allow_off_rb','allow_off_items','allow_off_cea','net_coff_on','npl_on','allow_on','prov_ratio']
 vars_x = ['credex_tot', 'reg_cap', 'loanratio', 'roa', 'depratio',\
           'comloanratio', 'mortratio','consloanratio', 'loanhhi', 'costinc',\
           'size','bhc']
-vars_trans = ['credex_tot_recession']
+vars_trans = ['credex_tot_recession','credex_tot_dodd']
 
 # Log the data
 if __name__ == '__main__':
@@ -298,11 +298,11 @@ df_log = df_log[df_log.index.get_level_values(0).isin(rssdid_lsers)]
 
 # Add interaction term  and interacted instruments (based on t)
 df_log[vars_trans[0]] = df_log[vars_x[0]] * (df_log.index.get_level_values(1).isin([pd.Timestamp('2001-12-31'), pd.Timestamp('2007-12-31'), pd.Timestamp('2008-12-31'), pd.Timestamp('2009-12-31')]) * 1)
-#df_log[vars_trans[1]] = df_log[vars_x[0]] * df[df.index.get_level_values(0).isin(rssdid_lsers)].dodd
+df_log[vars_trans[1]] = df_log[vars_x[0]] * df[df.index.get_level_values(0).isin(rssdid_lsers)].dodd
 
 # Lag x-vars 
 for var in vars_x + vars_trans:
-    df_log[var] = df_log.groupby(df_log.index.get_level_values(0))[var].shift(1)
+    df_log[var] = df_log.groupby(df_log.index.get_level_values(0))[var].shift(2)
 
 # Take first difference ls_nonsec and loanlevel
 #df_log['ls_nonsec'] = df_log.groupby(df_log.index.get_level_values(0))['ls_nonsec'].diff(1)
@@ -356,14 +356,14 @@ df_results_obs, latex_results_obs = concatResults(results_benchmark_obs_list_dfs
 # Save df and latex file
 #------------------------------------------------------------
 
-df_results_bs.to_csv('Results/Main/Step_2/Table_results_benchmark_bs.csv')
+df_results_bs.to_csv('Results/Main/Step_2/Table_results_benchmark_bs_extralag.csv')
 
-text_file_latex_results = open('Results/Main/Step_2/Table_results_benchmark_bs.tex', 'w')
+text_file_latex_results = open('Results/Main/Step_2/Table_results_benchmark_bs_extralag.tex', 'w')
 text_file_latex_results.write(latex_results_bs)
 text_file_latex_results.close()
 
-df_results_obs.to_csv('Results/Main/Step_2/Table_results_benchmark_obs.csv')
+df_results_obs.to_csv('Results/Main/Step_2/Table_results_benchmark_obs_extralag.csv')
 
-text_file_latex_results = open('Results/Main/Step_2/Table_results_benchmark_obs.tex', 'w')
+text_file_latex_results = open('Results/Main/Step_2/Table_results_benchmark_obs_extralag.tex', 'w')
 text_file_latex_results.write(latex_results_obs)
 text_file_latex_results.close()

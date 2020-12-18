@@ -56,7 +56,7 @@ def benchmarkModel(data, y, x):
         raise Exception('X is not full column rank')
         
     # Run benchmark model
-    model = PanelOLS(data[y], data[x], entity_effects = True, time_effects = True)
+    model = PanelOLS(data[y], data[x])
     results = model.fit(cov_type = 'clustered', cluster_entity = True)
     
     return results
@@ -298,15 +298,23 @@ df_log = df_log[df_log.index.get_level_values(0).isin(rssdid_lsers)]
 
 # Add interaction term  and interacted instruments (based on t)
 df_log[vars_trans[0]] = df_log[vars_x[0]] * (df_log.index.get_level_values(1).isin([pd.Timestamp('2001-12-31'), pd.Timestamp('2007-12-31'), pd.Timestamp('2008-12-31'), pd.Timestamp('2009-12-31')]) * 1)
-#df_log[vars_trans[1]] = df_log[vars_x[0]] * df[df.index.get_level_values(0).isin(rssdid_lsers)].dodd
 
 # Lag x-vars 
 for var in vars_x + vars_trans:
     df_log[var] = df_log.groupby(df_log.index.get_level_values(0))[var].shift(1)
+    
+# Take first differences (not the dummies)
+for var in vars_y + vars_y_obs + vars_x[:-1] + vars_trans:
+    df_log[var] = df_log.groupby(df_log.index.get_level_values(0))[var].diff(1)
 
-# Take first difference ls_nonsec and loanlevel
-#df_log['ls_nonsec'] = df_log.groupby(df_log.index.get_level_values(0))['ls_nonsec'].diff(1)
-#df_log['loanlevel'] = df_log.groupby(df_log.index.get_level_values(0))['loanlevel'].diff(1)
+# Add time dummies
+vars_dummies = ['dum' + dummy for dummy in pd.get_dummies(df_log.index.get_level_values(1)).columns.astype(str).str[:4].tolist()]
+
+dummy_fd = pd.DataFrame(np.array(pd.get_dummies(df_log.index.get_level_values(1))), index = df_log.index, columns = vars_dummies).iloc[:,1:]
+df_log = pd.concat([df_log, dummy_fd], axis = 1)
+
+# Add intercept
+df_log['intercept'] = 1
     
 # Drop na
 df_log.dropna(inplace = True)
@@ -316,7 +324,7 @@ df_log.dropna(inplace = True)
 #------------------------------------------------------------
 
 # Set right-hand-side variables
-vars_rhs_dum = [vars_x[0]] + vars_trans + vars_x[1:]
+vars_rhs_dum = [vars_x[0]] + vars_trans + vars_x[1:] + vars_dummies[3:] + ['intercept']
 
 # Run
 if __name__ == '__main__':
@@ -341,11 +349,11 @@ for result in results_benchmark_obs:
 # Benchmark
 col_label_bs = ['({})'.format(i) for i in range(1,len(results_benchmark_bs_list_dfs) + 1)]
 caption_bs = 'Estimation Results Benchmark Model: On-Balance-Sheet Risk'
-label_bs = 'tab:results_benchmark_bs'
+label_bs = 'tab:results_benchmark_fd_bs'
 
 col_label_obs = ['({})'.format(i) for i in range(1,len(results_benchmark_obs_list_dfs) + 1)]
 caption_obs = 'Estimation Results Benchmark Model: Off-Balance-Sheet Risk'
-label_obs = 'tab:results_benchmark_obs'
+label_obs = 'tab:results_benchmark_fd_obs'
 
 df_results_bs, latex_results_bs = concatResults(results_benchmark_bs_list_dfs, col_label = col_label_bs,\
                                                   caption = caption_bs, label = label_bs, step = 1)
@@ -356,14 +364,14 @@ df_results_obs, latex_results_obs = concatResults(results_benchmark_obs_list_dfs
 # Save df and latex file
 #------------------------------------------------------------
 
-df_results_bs.to_csv('Results/Main/Step_2/Table_results_benchmark_bs.csv')
+df_results_bs.to_csv('Results/Main/Step_2/Table_results_benchmark_fd_bs.csv')
 
-text_file_latex_results = open('Results/Main/Step_2/Table_results_benchmark_bs.tex', 'w')
+text_file_latex_results = open('Results/Main/Step_2/Table_results_benchmark_fd_bs.tex', 'w')
 text_file_latex_results.write(latex_results_bs)
 text_file_latex_results.close()
 
-df_results_obs.to_csv('Results/Main/Step_2/Table_results_benchmark_obs.csv')
+df_results_obs.to_csv('Results/Main/Step_2/Table_results_benchmark_fd_obs.csv')
 
-text_file_latex_results = open('Results/Main/Step_2/Table_results_benchmark_obs.tex', 'w')
+text_file_latex_results = open('Results/Main/Step_2/Table_results_benchmark_fd_obs.tex', 'w')
 text_file_latex_results.write(latex_results_obs)
 text_file_latex_results.close()

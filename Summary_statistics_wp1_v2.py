@@ -27,7 +27,7 @@ df = pd.read_csv('Data/df_wp1_main.csv')
 #------------------------------------------------------------
 
 # prelims
-vars_needed = ['net_coff_on','npl_on','allow_on','prov_ratio',\
+vars_needed = ['net_coff_on','allow_on','prov_ratio',\
                'allow_off_rb','allow_off_cea','ddl_off',\
                'credex_tot','reg_cap', 'loanratio', 'roa',\
                'depratio', 'comloanratio','mortratio', 'consloanratio',\
@@ -45,6 +45,9 @@ df_ls = df.loc[df.IDRSSD.isin(ls_idrssd),all_vars + vars_needed]
 
 # Add crisis dummy
 df_ls['recession'] = (df_ls.date.isin([2001,2007,2008,2009]) * 1)
+
+# Take the log of size
+df_ls['size'] = np.log(df_ls['size'])
 
 #------------------------------------------------------------
 # Full Summary statistics
@@ -71,7 +74,7 @@ columns = ['Mean', 'SD']
 ss_ls.columns = columns
 
 # Change index
-index_col = ['Net Charge-offs','NPL','Allowance Ratio','Provision Ratio',\
+index_col = ['Net Charge-offs','Allowance Ratio','Provision Ratio',\
              'OBS Allowance Ratio (Asset Eq.) ','OBS Allowance Ratio (Credit Eq.)',\
              'OBS Loan Delinq. and Defaults',\
              'Max. Credit Exp.','Capital Ratio',\
@@ -90,13 +93,13 @@ ss_ls.index = index_col
 credex_yes = df_ls[df_ls.credex_tot > 0]
 credex_no = df_ls[df_ls.credex_tot == 0]
 
-risk_vars = ['net_coff_on','npl_on','allow_on','prov_ratio',\
+risk_vars = ['net_coff_on','allow_on','prov_ratio',\
                'allow_off_rb','allow_off_cea','ddl_off']
 
 ss_credex = pd.DataFrame([credex_no[risk_vars].mean(),credex_yes[risk_vars].mean()]).T
 
 # Add index and columns
-ss_credex.index = ['Net Charge-offs','NPL','Allowance Ratio','Provision Ratio',\
+ss_credex.index = ['Net Charge-offs','Allowance Ratio','Provision Ratio',\
              'OBS Allowance Ratio (Asset Eq.) ','OBS Allowance Ratio (Credit Eq.)',\
              'OBS Loan Delinq. and Defaults']
 ss_credex.columns = ['No Recourse','Recourse']
@@ -228,13 +231,13 @@ text_ss_tot_latex.close()
 
 # Risk variables
 ## Get the mean variables
-df_risk = df_ls[['net_coff_on','npl_on','allow_on','prov_ratio','allow_off_rb','allow_off_cea','ddl_off']].groupby(df.date).mean() * 100
+df_risk = df_ls[['net_coff_on','allow_on','prov_ratio','allow_off_rb',\
+                 'allow_off_cea','ddl_off']].groupby(df.date).mean() * 100
 
 ## Plot
 fig, ax = plt.subplots(figsize=(14, 8))
 ax.set(xlabel='Year', ylabel = 'Average (in %)')
 ax.plot(df_risk.iloc[:,0], linestyle = '-', color = 'black', label = 'Net Charge-offs')
-ax.plot(df_risk.iloc[:,1], linestyle = '--', color = 'black', markersize=14, label = 'NPL')
 ax.legend(loc=4)
 plt.tight_layout()
 
@@ -242,8 +245,8 @@ fig.savefig('Figures\Fig_sumstats_risk_vars_realized.png')
 
 fig, ax = plt.subplots(figsize=(14, 8))
 ax.set(xlabel='Year', ylabel = 'Average (in %)')
-ax.plot(df_risk.iloc[:,2], linestyle = ':', color = 'black', label = 'Loan Loss Allowances')
-ax.plot(df_risk.iloc[:,3], linestyle = '-.', color = 'black', markersize=14, label = 'Loan Loss Provisions')
+ax.plot(df_risk.iloc[:,1], linestyle = ':', color = 'black', label = 'Loan Loss Allowances')
+ax.plot(df_risk.iloc[:,2], linestyle = '-.', color = 'black', markersize=14, label = 'Loan Loss Provisions')
 ax.legend(loc=4)
 plt.tight_layout()
 
@@ -251,9 +254,9 @@ fig.savefig('Figures\Fig_sumstats_risk_vars_anticipated.png')
 
 fig, ax = plt.subplots(figsize=(14, 8))
 ax.set(xlabel='Year', ylabel = 'Average (in %)')
-lns1 = ax.plot(df_risk.iloc[:,4], linestyle = ':', color = 'black', label = 'OBS Allow. Ratio (Asset Eq.; left axis)')
+lns1 = ax.plot(df_risk.iloc[:,3], linestyle = ':', color = 'black', label = 'OBS Allow. Ratio (Asset Eq.; left axis)')
 ax2 = ax.twinx()
-lns2 = ax2.plot(df_risk.iloc[:,5], linestyle = '-', color = 'black', markersize=14, label = 'OBS Allow. Ratio (Credit Eq.; right axis)')
+lns2 = ax2.plot(df_risk.iloc[:,4], linestyle = '-', color = 'black', markersize=14, label = 'OBS Allow. Ratio (Credit Eq.; right axis)')
 lns = lns1+lns2
 labs = [l.get_label() for l in lns]
 ax.legend(lns, labs, loc=4)
@@ -263,7 +266,7 @@ fig.savefig('Figures\Fig_sumstats_risk_vars_obs_allow.png')
 
 fig, ax = plt.subplots(figsize=(14, 8))
 ax.set(xlabel='Year', ylabel = 'Average (in %)')
-ax.plot(df_risk.iloc[:,6], linestyle = '--', color = 'black', markersize=14, label = 'OBS Loan Delinq. and Defaults (left axis)')
+ax.plot(df_risk.iloc[:,5], linestyle = '--', color = 'black', markersize=14, label = 'OBS Loan Delinq. and Defaults (left axis)')
 ax.legend(loc=4)
 plt.tight_layout()
 

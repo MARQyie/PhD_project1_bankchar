@@ -187,7 +187,7 @@ def resultsToLatex(results, caption = '', label = ''):
     # Prelim
     function_parameters = dict(na_rep = '',
                                index_names = False,
-                               column_format = 'p{3.5cm}' + 'p{1.5cm}' * results.shape[1],
+                               column_format = 'p{2.5cm}' + 'p{0.9cm}' * results.shape[1],
                                escape = False,
                                multicolumn = False,
                                multicolumn_format = 'c',
@@ -230,7 +230,7 @@ def concatResults(df_list, show = 'pval', stars = False, col_label = None, capti
     results_latex = results_latex[:location + len('\begin{table}\n') + 1] + '[ht]' + results_latex[location + len('\begin{table}\n') + 1:]
     
     ## Make the font size of the table footnotesize
-    size_string = '\\scriptsize \n'
+    size_string = '\\tiny \n'
     location = results_latex.find('\centering\n')
     results_latex = results_latex[:location + len('\centering\n')] + size_string + results_latex[location + len('\centering\n'):]
     
@@ -242,19 +242,18 @@ def concatResults(df_list, show = 'pval', stars = False, col_label = None, capti
     ## Add note to the table
     # TODO: Add std, tval and stars option
     if step == 1:
-        note_string = '\\begin{tablenotes}\n\\scriptsize\n\item\\textit{Notes.} P-value in parentheses. The model is estimated with clustered standard errors on the bank-level.\\end{tablenotes}\n'
+        note_string = '\\begin{tablenotes}\n\\scriptsize\n\item\\textit{Notes.} P-value in parentheses. Re-estimation of the benchmark model with dependent variables: loans 90 days past due and still accruing; non-accrual loans; restructured loans included in non-performing loans; restructured loans not included in non-performing loans; non-restructured non-performing loans; real estate non-performing loans; commercial and industrial non-performing loans; household expenditure non-performing loans; other non-performing loans. The model is estimated with clustered standard errors on the bank-level.\\end{tablenotes}\n'
     else:
         note_string = '\justify\n\\scriptsize{\\textit{Notes.} P-value in parentheses. The model is estimated with clustered standard errors on the bank-level.}\n'
     location = results_latex.find('\end{tabular}\n')
     results_latex = results_latex[:location + len('\end{tabular}\n')] + note_string + results_latex[location + len('\end{tabular}\n'):]
     
-        # Make threeparttable
+    # Make threeparttable
     location_centering = results_latex.find('\centering\n')
     results_latex = results_latex[:location_centering + len('\centering\n')] + '\\begin{threeparttable}\n' + results_latex[location_centering + len('\centering\n'):]
     
     location_endtable = results_latex.find('\\end{tablenotes}\n')
     results_latex = results_latex[:location_endtable + len('\\end{tablenotes}\n')] + '\\end{threeparttable}\n' + results_latex[location_endtable + len('\\end{tablenotes}\n'):]
-    
     
     return results,results_latex
 
@@ -276,10 +275,8 @@ df.set_index(['IDRSSD','date'],inplace=True)
 #------------------------------------------------------------
 
 # Set list with variables to use
-#vars_y = ['ls_nonsec','loanlevel','net_coff_on','npl_on','allow_tot','prov_ratio']
-vars_y = ['net_coff_on','allow_on','prov_ratio']
-vars_y_obs = ['allow_off_rb','allow_off_cea','ddl_off']
-#vars_y = ['allow_off_rb','allow_off_items','allow_off_cea','net_coff_on','npl_on','allow_on','prov_ratio']
+vars_y = ['npl90_on','nplna_on','npl_res_on','restruc_loans','npl_nores_on','npl_re_on','npl_ci_on','npl_he_on','npl_oth_on']
+vars_y_obs = ['npl_re_on','npl_ci_on','npl_he_on','npl_oth_on']
 vars_x = ['credex_tot', 'reg_cap', 'loanratio', 'roa', 'depratio',\
           'comloanratio', 'mortratio','consloanratio', 'loanhhi', 'costinc',\
           'size','bhc']
@@ -287,7 +284,7 @@ vars_trans = ['credex_tot_recession']
 
 # Log the data
 if __name__ == '__main__':
-    df_log = pd.concat(Parallel(n_jobs = num_cores)(delayed(logVars)(df, col) for col in vars_y + vars_y_obs + vars_x[:-1]), axis = 1)
+    df_log = pd.concat(Parallel(n_jobs = num_cores)(delayed(logVars)(df, col) for col in vars_y + vars_x[:-1]), axis = 1)
     
 # Add bhc
 df_log['bhc'] = df.bhc
@@ -340,12 +337,12 @@ for result in results_benchmark_obs:
     
 # Benchmark
 col_label_bs = ['({})'.format(i) for i in range(1,len(results_benchmark_bs_list_dfs) + 1)]
-caption_bs = 'Estimation Results Benchmark Model: On-Balance-Sheet Risk'
-label_bs = 'tab:results_benchmark_bs'
+caption_bs = 'Estimation Results Different Categories of Non-Performing Loans'
+label_bs = 'tab:results_benchmark_npl1'
 
 col_label_obs = ['({})'.format(i) for i in range(1,len(results_benchmark_obs_list_dfs) + 1)]
-caption_obs = 'Estimation Results Benchmark Model: Off-Balance-Sheet Risk'
-label_obs = 'tab:results_benchmark_obs'
+caption_obs = 'Estimation Results Benchmark Model: NPL Split (2)'
+label_obs = 'tab:results_benchmark_npl2'
 
 df_results_bs, latex_results_bs = concatResults(results_benchmark_bs_list_dfs, col_label = col_label_bs,\
                                                   caption = caption_bs, label = label_bs, step = 1)
@@ -356,14 +353,14 @@ df_results_obs, latex_results_obs = concatResults(results_benchmark_obs_list_dfs
 # Save df and latex file
 #------------------------------------------------------------
 
-df_results_bs.to_csv('Results/Main/Step_2/Table_results_benchmark_bs.csv')
+df_results_bs.to_csv('Results/Main/Step_2/Table_results_benchmark_npl1.csv')
 
-text_file_latex_results = open('Results/Main/Step_2/Table_results_benchmark_bs.tex', 'w')
+text_file_latex_results = open('Results/Main/Step_2/Table_results_benchmark_npl1.tex', 'w')
 text_file_latex_results.write(latex_results_bs)
 text_file_latex_results.close()
 
-df_results_obs.to_csv('Results/Main/Step_2/Table_results_benchmark_obs.csv')
+df_results_obs.to_csv('Results/Main/Step_2/Table_results_benchmark_npl2.csv')
 
-text_file_latex_results = open('Results/Main/Step_2/Table_results_benchmark_obs.tex', 'w')
+text_file_latex_results = open('Results/Main/Step_2/Table_results_benchmark_npl2.tex', 'w')
 text_file_latex_results.write(latex_results_obs)
 text_file_latex_results.close()

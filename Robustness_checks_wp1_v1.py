@@ -100,6 +100,10 @@ def estimationTable(df, show = 'pval', stars = False, col_label = 'Est. Results'
                  'credex_tot_vix_mean':'Recourse $\times$ VIX',
                  'credex_tot_pc_mean':'Recourse $\times$ PC',
                  'credex_tot_gdp':'Recourse $\times$ $\Delta$GDP',
+                 'credex_tot_dodd':'Recourse $\times$ DFA',
+                 'credex_sec_dodd':'Recourse (Sec.) $\times$ DFA',
+                 'credex_nonsec_dodd':'Recourse (Loan Sales) $\times$ DFA',
+                 'credex_tot_alt_dodd':'Recourse $\times$ DFA',
                  'endo_hat':'Recourse',
                  'endo_int_hat':'Recourse $\times$ Recession',
                  'reg_cap':'Capital Ratio',
@@ -197,7 +201,7 @@ def resultsToLatex(results, caption = '', label = ''):
     return results.to_latex(**function_parameters)
 
 
-def concatResults(df_list, show = 'pval', stars = False, col_label = None, caption = '', label = '', step = 0):
+def concatResults(df_list, show = 'pval', stars = False, col_label = None, caption = '', label = '', step = 0, sidewaystable = False):
     '''Calls estimationTable and returns a concatenated table '''
     
     list_of_results = []
@@ -241,11 +245,23 @@ def concatResults(df_list, show = 'pval', stars = False, col_label = None, capti
     ## Add note to the table
     # TODO: Add std, tval and stars option
     if step == 1:
-        note_string = '\justify\n\\scriptsize{\\textit{Notes.} P-value in parentheses. The model is estimated with clustered standard errors on the bank-level.}\n'
+        note_string = '\\begin{tablenotes}\n\\scriptsize\n\item\\textit{Notes.} P-value in parentheses. The model is estimated with clustered standard errors on the bank-level.\\end{tablenotes}\n'
     else:
         note_string = '\justify\n\\scriptsize{\\textit{Notes.} P-value in parentheses. The model is estimated with clustered standard errors on the bank-level.}\n'
     location = results_latex.find('\end{tabular}\n')
     results_latex = results_latex[:location + len('\end{tabular}\n')] + note_string + results_latex[location + len('\end{tabular}\n'):]
+    
+    # Makes sidewaystable
+    if sidewaystable:
+        results_latex = results_latex.replace('{table}','{sidewaystable}',2)
+        
+    # Make threeparttable
+    location_centering = results_latex.find('\centering\n')
+    results_latex = results_latex[:location_centering + len('\centering\n')] + '\\begin{threeparttable}\n' + results_latex[location_centering + len('\centering\n'):]
+    
+    location_endtable = results_latex.find('\\end{tablenotes}\n')
+    results_latex = results_latex[:location_endtable + len('\\end{tablenotes}\n')] + '\\end{threeparttable}\n' + results_latex[location_endtable + len('\\end{tablenotes}\n'):]
+    
     
     return results,results_latex
 
@@ -305,6 +321,7 @@ def plotRollingAverage(params, std_errors, depvar, var_name):
 
     ## Save the figure
     fig.savefig('Figures\Moving_averages\{}\MA_{}_{}.png'.format(depvar,depvar,var_name))  
+    
 #------------------------------------------------------------
 # Load the df and set up
 #------------------------------------------------------------
@@ -324,7 +341,11 @@ df.set_index(['IDRSSD','date'],inplace=True)
 #------------------------------------------------------------
 
 # Set list with variables to use
-vars_y = ['net_coff_on','npl_on','allow_on','prov_ratio','allow_off_rb','allow_off_cea','ddl_off']
+vars_y = ['net_coff_on','allow_on','prov_ratio','allow_off_rb','allow_off_cea','ddl_off']
+
+## y-vars for npl
+vars_y_npl = ['npl_on','npl90_on','nplna_on','npl_res_on','restruc_loans',\
+              'npl_nores_on','npl_re_on','npl_ci_on','npl_he_on','npl_oth_on']
 
 ## X vars for rolling window, alternative business cycle
 vars_x = ['credex_tot', 'reg_cap', 'loanratio', 'roa', 'depratio',\
@@ -343,11 +364,12 @@ vars_x_recalt2 = ['credex_nonsec','credex_sec','credex_sbo', 'reg_cap', 'loanrat
 vars_trans = ['credex_tot_recession', 'credex_tot_vix_mean',\
               'credex_tot_tfp','credex_tot_pc_mean',\
               'credex_tot_cs_mean','credex_tot_gdp','credex_tot_rig_mean',\
-              'credex_tot_alt_recession','credex_nonsec_recession','credex_sec_recession','credex_sbo_recession']
+              'credex_tot_alt_recession','credex_nonsec_recession',\
+              'credex_sec_recession','credex_sbo_recession','credex_tot_dodd']
 
 # Log the data
 if __name__ == '__main__':
-    df_log = pd.concat(Parallel(n_jobs = num_cores)(delayed(logVars)(df, col) for col in vars_y  + np.unique(vars_x[:-1] + vars_x_recalt1[:-1] + vars_x_recalt2[:-1]).tolist()), axis = 1)
+    df_log = pd.concat(Parallel(n_jobs = num_cores)(delayed(logVars)(df, col) for col in vars_y  + vars_y_npl + np.unique(vars_x[:-1] + vars_x_recalt1[:-1] + vars_x_recalt2[:-1]).tolist()), axis = 1)
     
 # Add bhc
 df_log['bhc'] = df.bhc
@@ -367,6 +389,9 @@ df_log[vars_trans[8]] = df_log[vars_x_recalt2[0]] * (df_log.index.get_level_valu
 df_log[vars_trans[9]] = df_log[vars_x_recalt2[1]] * (df_log.index.get_level_values(1).isin([pd.Timestamp('2001-12-31'), pd.Timestamp('2007-12-31'), pd.Timestamp('2008-12-31'), pd.Timestamp('2009-12-31')]) * 1)
 df_log[vars_trans[10]] = df_log[vars_x_recalt2[2]] * (df_log.index.get_level_values(1).isin([pd.Timestamp('2001-12-31'), pd.Timestamp('2007-12-31'), pd.Timestamp('2008-12-31'), pd.Timestamp('2009-12-31')]) * 1)
 
+## Dodd Frank
+df_log[vars_trans[11]] = df_log[vars_x[0]] * df[df.index.get_level_values(0).isin(rssdid_lsers)].dodd
+
 ## Other BS measures
 df_log[vars_trans[1]] = df_log[vars_x[0]] * np.log(df[df.index.get_level_values(0).isin(rssdid_lsers)].vix_mean)   
 df_log[vars_trans[2]] = df_log[vars_x[0]] * df[df.index.get_level_values(0).isin(rssdid_lsers)].tfp
@@ -383,7 +408,7 @@ for var in np.unique(vars_x[:-1] + vars_x_recalt1[:-1] + vars_x_recalt2[:-1]).to
 df_log.dropna(inplace = True)
 
 #------------------------------------------------------------
-# Robeust
+# Robust
 #------------------------------------------------------------
 
 # Set right-hand-side variables
@@ -396,10 +421,16 @@ vars_rhs_pc = [vars_x[0]] + [vars_trans[3]] + vars_x[1:]
 vars_rhs_gdp = [vars_x[0]] + [vars_trans[5]] + vars_x[1:]
 
 ## Alternative Recourse measures
-vars_rhs_altrec1 = [vars_x_recalt1[0]] + [vars_trans[7]] + vars_x_recalt1[1:]
-vars_rhs_altrec2 = [vars_x_recalt2[0]] + [vars_trans[8]] + [vars_x_recalt2[1]] + [vars_trans[9]] + [vars_x_recalt2[2]] + [vars_trans[10]] + vars_x_recalt2[3:]
+vars_rhs_altrec1 = [vars_x_recalt1[0]] + [vars_trans[7]] +  vars_x_recalt1[1:]
+vars_rhs_altrec2 = [vars_x_recalt2[0]] + [vars_trans[8]] + [vars_x_recalt2[1]] + [vars_trans[9]] + [vars_x_recalt2[2]] + [vars_trans[10]] +  vars_x_recalt2[3:]
 
-# Rolling window
+## Dodd-Frank
+vars_rhs_dfa = [vars_x[0]] + [vars_trans[0]] + [vars_trans[11]] + vars_x[1:]
+
+## NPL
+vars_rhs_npl = [vars_x[0]] + [vars_trans[0]] + vars_x[1:]
+
+# Get dattes for Rolling window
 dates = df_log.index.get_level_values('date').year.unique()
 
 # Run
@@ -415,6 +446,12 @@ if __name__ == '__main__':
     ## Alternative Recourse measures
     results_altrec1 = Parallel(n_jobs = num_cores)(delayed(benchmarkModel)(df_log, elem, vars_rhs_altrec1) for elem in vars_y)
     results_altrec2 = Parallel(n_jobs = num_cores)(delayed(benchmarkModel)(df_log, elem, vars_rhs_altrec2) for elem in vars_y)
+    
+    ## Dodd-Frank Act
+    results_dfa = Parallel(n_jobs = num_cores)(delayed(benchmarkModel)(df_log, elem, vars_rhs_dfa) for elem in vars_y)
+    
+    ## NPL
+    results_npl = Parallel(n_jobs = num_cores)(delayed(benchmarkModel)(df_log, elem, vars_rhs_npl) for elem in vars_y_npl)
 
 #------------------------------------------------------------
 # Make neat dataframes and transform to latex
@@ -439,8 +476,22 @@ for result_altrec1, result_altrec2 in zip(results_altrec1, results_altrec2):
     results_altrec1_list_dfs.append(summaryToDFBenchmark(result_altrec1))
     results_altrec2_list_dfs.append(summaryToDFBenchmark(result_altrec2))
 
+## Dodd-Frank Act
+results_dfa_list_dfs = []
+
+for result_dfa in  results_dfa:
+    results_dfa_list_dfs.append(summaryToDFBenchmark(result_dfa))
+    
+## NPL
+results_npl_list_dfs = []
+
+for result_npl in  results_npl:
+    results_npl_list_dfs.append(summaryToDFBenchmark(result_npl))
+
+
 # Make dfs and latex tables
 col_label = ['({})'.format(i) for i in range(1,len(results_vix_list_dfs) + 1)]
+col_label_npl = ['({})'.format(i) for i in range(1,len(results_npl_list_dfs) + 1)]
 
 ## Alternative Business Cycle measures
 caption_vix = 'Robustness Check Alternative Business Cycle Measures: VIX'
@@ -453,11 +504,19 @@ caption_gdp = 'Robustness Check Alternative Business Cycle Measures: GDP Growth'
 label_gdp = 'tab:results_robust_gdp'
 
 ## Alternative Recourse measures
-caption_altrec1 = 'Robustness Check Alternative Recourse Measures (1)'
+caption_altrec1 = 'Robustness Check Alternative Recourse Measures: Recourse Dummy'
 label_altrec1 = 'tab:results_robust_altrec1'
 
-caption_altrec2 = 'Robustness Check Alternative Recourse Measures (2)'
+caption_altrec2 = 'Robustness Check Alternative Recourse Measures: Recourse Split'
 label_altrec2 = 'tab:results_robust_altrec2'
+
+## Dodd-Frank Act
+caption_dfa= 'Robustness Check: The Dodd-Frank Act'
+label_dfa = 'tab:results_robust_dfa'
+
+## NPL
+caption_npl = 'Robustness Check: Non-performing Loans'
+label_npl = 'tab:results_robust_npl'
 
 ## Make
 df_results_vix, latex_results_vix = concatResults(results_vix_list_dfs, col_label = col_label,\
@@ -471,6 +530,13 @@ df_results_altrec1, latex_results_altrec1 = concatResults(results_altrec1_list_d
                                                   caption = caption_altrec1, label = label_altrec1, step = 1)
 df_results_altrec2, latex_results_altrec2 = concatResults(results_altrec2_list_dfs, col_label = col_label,\
                                                   caption = caption_altrec2, label = label_altrec2, step = 1)
+    
+df_results_dfa, latex_results_dfa = concatResults(results_dfa_list_dfs, col_label = col_label,\
+                                                  caption = caption_dfa, label = label_dfa, step = 1)
+    
+df_results_npl, latex_results_npl = concatResults(results_npl_list_dfs, col_label = col_label_npl,\
+                                                  caption = caption_npl, label = label_npl, step = 1,\
+                                                  sidewaystable = True)
 
 #------------------------------------------------------------
 # Save df and latex file
@@ -503,6 +569,18 @@ text_file_latex_results = open('Robustness_checks/Table_results_robust_altrec2.t
 text_file_latex_results.write(latex_results_altrec2)
 text_file_latex_results.close()
 
+##Dodd-Frank Act
+df_results_dfa.to_csv('Robustness_checks/Table_results_robust_dfa.csv')
+text_file_latex_results = open('Robustness_checks/Table_results_robust_dfa.tex', 'w')
+text_file_latex_results.write(latex_results_dfa)
+text_file_latex_results.close()
+
+## NPL
+df_results_npl.to_csv('Robustness_checks/Table_results_robust_npl.csv')
+text_file_latex_results = open('Robustness_checks/Table_results_robust_npl.tex', 'w')
+text_file_latex_results.write(latex_results_npl)
+text_file_latex_results.close()
+
 #------------------------------------------------------------
 # Plot the Rolling averages
 #------------------------------------------------------------
@@ -512,12 +590,11 @@ year_labels = [i[len(i)//2] for i in window(dates, 5)]
 var_names = results_rw[0]._var_names
 
 # Get chunks
-coff, npl, allow, prov, allow_obs_rb, allow_obs_cea, ddl = chunkIt(results_rw,7)
+coff, allow, prov, allow_obs_rb, allow_obs_cea, ddl = chunkIt(results_rw,6)
 
 for p in range(len(var_names)):
     ## Get params and stds
     params_coff = [mod.params[p] for mod in coff]
-    params_npl = [mod.params[p] for mod in npl]
     params_allow = [mod.params[p] for mod in allow]
     params_prov = [mod.params[p] for mod in prov]
     params_allow_obs_cea = [mod.params[p] for mod in allow_obs_cea]
@@ -525,7 +602,6 @@ for p in range(len(var_names)):
     params_ddl = [mod.params[p] for mod in ddl]
     
     std_errors_coff = [mod.std_errors[p] for mod in coff]
-    std_errors_npl = [mod.std_errors[p] for mod in npl]
     std_errors_allow = [mod.std_errors[p] for mod in allow]
     std_errors_prov = [mod.std_errors[p] for mod in prov]
     std_errors_allow_obs_cea = [mod.std_errors[p] for mod in allow_obs_cea]
@@ -534,7 +610,6 @@ for p in range(len(var_names)):
     
     # Run models
     plotRollingAverage(params_coff, std_errors_coff, 'net_coff', var_names[p])
-    plotRollingAverage(params_npl, std_errors_npl, 'npl', var_names[p])
     plotRollingAverage(params_allow, std_errors_allow, 'allow', var_names[p])
     plotRollingAverage(params_prov, std_errors_prov, 'prov', var_names[p])
     plotRollingAverage(params_allow_obs_cea, std_errors_allow_obs_cea, 'allow_obs_cea', var_names[p])

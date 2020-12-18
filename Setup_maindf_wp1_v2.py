@@ -90,23 +90,97 @@ sum(axis = 1)) / df_filtered.loc[:,['RCB705','RCB706','RCB707','RCB708','RCB709'
 ## Non-performing loans
 ## NOTE: We classify NPL as 90 and still accruing + nonaccrual. Just to be sure we also calculate 30-89 days accruing loans
 df.loc[:,'npl30'] = df_filtered.loc[:,['RCON2759','RCON3493','RCON5398','RCON5401','RCON3499','RCON3502',\
-              'RCFD5377','RC5380','RC1594','RCFD1251','RC1254','RCB575','RCB578',\
+              'RCFD5377','RC5380','RCFD1251','RC1254','RCB575','RCB578',\
               'RC5389','RC5459','RCFD1257','RC1271','RCONF172','RCONF173','RCONC236',\
-              'RCONC238','RCONF178','RCONF179','RCK213','RCK216']].sum(axis = 1, skipna = True)
+              'RCONC238','RCONF178','RCONF179','RCK213','RCK216','RCONB834']].sum(axis = 1, skipna = True)
 df.loc[:,'npl90'] = df_filtered.loc[:,['RCON2769','RCON3494','RCON5399','RCON5402','RCON3500','RCON3503',\
-              'RCFD5378','RC5381','RC1597','RCFD1252','RC1255','RCB576','RCB579',\
+              'RCFD5378','RC5381','RCFD1252','RC1255','RCB576','RCB579',\
               'RC5390','RC5460','RCFD1258','RC1272','RCONF174','RCONF175','RCONC237',\
-              'RCONC239','RCONF180','RCONF181','RCK214','RCK217']].sum(axis = 1, skipna = True)
+              'RCONC239','RCONF180','RCONF181','RCK214','RCK217','RCONB835',\
+              'RCON1607']].sum(axis = 1, skipna = True)
 df.loc[:,'nplna'] = df_filtered.loc[:,['RCON3492','RCON3495','RCON5400','RCON5403','RCON3501','RCON3504',\
-              'RCFD5379','RC5382','RC1583','RCFD1253','RC1256','RCB577','RCB580',\
+              'RCFD5379','RC5382','RCFD1253','RC1256','RCB577','RCB580',\
               'RC5391','RC5461','RCFD1259','RC1791','RCONF176','RCONF177','RCONC229',\
-              'RCONC230','RCONF182','RCONF183','RCK215','RCK218']].sum(axis = 1, skipna = True)
+              'RCONC230','RCONF182','RCONF183','RCK215','RCK218','RCONB836','RCON1608']].sum(axis = 1, skipna = True)
 df.loc[:,'npl_on'] = (df.npl90 + df.nplna) / df_filtered[['RC2122', 'RC2123']].sum(axis = 1)
 
 ## OBS and tot non-performing loans
 df.loc[:,'npl_off'] = (df_filtered.loc[:,['RCB740','RCB741','RCB742','RCB743','RCB744','RCB745','RCB746']].sum(axis = 1, skipna = True).divide(df_filtered.loc[:,['RCB705','RCB706','RCB707','RCB708','RCB709','RCB710','RCB711','RCONFT08']].sum(axis = 1, skipna = True))).replace([np.inf,-np.inf, np.nan], 0)
 
 df.loc[:,'npl_tot'] = (df.npl90 + df.nplna + df_filtered.loc[:,['RCB740','RCB741','RCB742','RCB743','RCB744','RCB745','RCB746']].sum(axis = 1, skipna = True)).divide(df_filtered.loc[:,['RC2122', 'RC2123','RCB705','RCB706','RCB707','RCB708','RCB709','RCB710','RCB711','RCONFT08']].sum(axis = 1, skipna = True))
+
+## Subdivide non-performing loans
+### >90 days
+df.loc[:,'npl90_on'] = (df.npl90) / df_filtered[['RC2122', 'RC2123']].sum(axis = 1)
+
+### Non-accrual
+df.loc[:,'nplna_on'] = (df.nplna) / df_filtered[['RC2122', 'RC2123']].sum(axis = 1)
+
+### Restructured loans in NPL, >90, non-accrual
+df.loc[:,'npl90_res'] = df_filtered.loc[:,['RC1659', 'RCONK106', 'RCONK109', 'RCONF662',\
+                                           'RCONK112', 'RCONK115', 'RCONK118', 'RCONK258',\
+                                           'RCK121','RCK124','RCK127']].sum(axis = 1, skipna = True)
+df.loc[:,'nplna_res'] = df_filtered.loc[:,['RC1661', 'RCONK107', 'RCONK110', 'RCONF663',\
+                                           'RCONK113', 'RCONK116', 'RCONK119', 'RCONK259',\
+                                           'RCK122','RCK125','RCK128']].sum(axis = 1, skipna = True)
+    
+df.loc[:,'npl_res_on'] = (df.npl90_res + df.nplna_res) / df_filtered[['RC2122', 'RC2123']].sum(axis = 1)
+
+### Not-restructured loans in NPL, >90, non-accrual
+df.loc[:,'npl_nores_on'] = (df.npl90 + df.nplna - df.npl90_res - df.nplna_res) / df_filtered[['RC2122', 'RC2123']].sum(axis = 1)
+
+### Divide according to type of loans
+#### Loans securited by Real Estate
+df.loc[:,'npl90_re'] = df_filtered.loc[:,['RCON2769','RCON3494','RCON5399','RCON5402','RCON3500','RCON3503',\
+                    'RCONF174','RCONF175','RCONC237','RCONC239','RCONF180','RCONF181']].sum(axis = 1, skipna = True)
+df.loc[:,'nplna_re'] = df_filtered.loc[:,['RCON3492','RCON3495','RCON5400','RCON5403','RCON3501','RCON3504',\
+                    'RCONF176','RCONF177','RCONC229','RCONC230','RCONF182','RCONF183']].sum(axis = 1, skipna = True)
+    
+df.loc[:,'npl_re_on'] = (df.npl90_re + df.nplna_re) / df_filtered[['RC2122', 'RC2123']].sum(axis = 1)
+
+#### Loans to depository institutions
+df.loc[:,'npl90_dep'] = df_filtered.loc[:,['RCFD5378','RC5381','RCONB835']].sum(axis = 1, skipna = True)
+df.loc[:,'nplna_dep'] = df_filtered.loc[:,['RCFD5379','RC5382','RCONB836']].sum(axis = 1, skipna = True)
+
+df.loc[:,'npl_dep_on'] = (df.npl90_dep + df.nplna_dep) / df_filtered[['RC2122', 'RC2123']].sum(axis = 1)
+    
+#### Commercial and industrial loans
+df.loc[:,'npl90_ci'] = df_filtered.loc[:,['RCON1607','RCFD1252','RC1255']].sum(axis = 1, skipna = True)
+df.loc[:,'nplna_ci'] = df_filtered.loc[:,['RCON1608','RCFD1253','RC1256']].sum(axis = 1, skipna = True)
+
+df.loc[:,'npl_ci_on'] = (df.npl90_ci + df.nplna_ci) / df_filtered[['RC2122', 'RC2123']].sum(axis = 1)
+
+#### Loans for household expenditures
+df.loc[:,'npl90_he'] = df_filtered.loc[:,['RCB576','RCB579','RCK214','RCK217']].sum(axis = 1, skipna = True)
+df.loc[:,'nplna_he'] = df_filtered.loc[:,['RCB577','RCB580','RCK215','RCK218']].sum(axis = 1, skipna = True)
+
+df.loc[:,'npl_he_on'] = (df.npl90_he + df.nplna_he) / df_filtered[['RC2122', 'RC2123']].sum(axis = 1)
+
+#### Loans to foreign governments
+df.loc[:,'npl90_fg'] = df_filtered.RC5390
+df.loc[:,'nplna_fg'] = df_filtered.RC5391
+
+df.loc[:,'npl_fg_on'] = (df.npl90_fg + df.nplna_fg) / df_filtered[['RC2122', 'RC2123']].sum(axis = 1)
+
+#### Other loans
+df.loc[:,'npl90_oth'] = df_filtered.RC5460
+df.loc[:,'nplna_oth'] = df_filtered.RC5461
+
+df.loc[:,'npl_oth_on'] = (df.npl90_oth + df.nplna_oth) / df_filtered[['RC2122', 'RC2123']].sum(axis = 1)
+
+## Restructured loans
+### first make method:
+def restructuredLoans(data):
+    if data.date < 2008:
+        return data.RC1616
+    elif data.date < 2011:
+        return data[['RC1616','RCONF576']].sum()
+    else:
+        return data[['RCONK158', 'RCONK159', 'RCONK160', 'RCONK161', 'RCONK162'] +\
+                    ['RCONK256','RCFDK163','RCFDK164','RCK165','RCONF576']].sum()
+            
+### Make variable
+df.loc[:,'restruc_loans'] = df_filtered.apply(restructuredLoans, axis = 1) / df_filtered[['RC2122', 'RC2123']].sum(axis = 1)
 
 ## Deliquent and Defaulted OBS loans
 ## NOTE: OBS npl + charge-offs
@@ -165,7 +239,7 @@ df.loc[:,'prov_ratio'] = df_filtered.RIAD4230.divide(df_filtered[['RC2122', 'RC2
 ## Loan sales
 df.loc[:,'ls_tot'] = df_filtered.loc[:,['RCB705','RCB706','RCB707','RCB708','RCB709','RCB710',\
                'RCB711','RCB790','RCB791','RCB792','RCB793','RCB794','RCB795',\
-                  'RCB796','RCONFT08','RCONFT10']].sum(axis = 1, skipna = True) / df_filtered.RC2170
+                  'RCB796','RCONFT08','RCONFT10','RCA249']].sum(axis = 1, skipna = True) / df_filtered.RC2170
           
 ## Regulatory Leverage Ratio and capital ratio
 df.loc[:,'reg_lev'] = df_filtered.RC7204
